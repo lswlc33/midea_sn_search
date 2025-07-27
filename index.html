@@ -7,9 +7,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/15.0.7/marked.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.6.0/styles/default.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.6.0/highlight.min.js"></script>
+    <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
 
     <title>条码查询</title>
-    
+
     <style>
         body,
         .container {
@@ -49,6 +50,16 @@
             cursor: pointer;
         }
 
+        #clean-and-start-btn {
+            padding: 10px 20px;
+            background-color: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 20px 0;
+        }
+
         #search-btn:hover {
             background-color: #0055aa;
         }
@@ -73,11 +84,19 @@
             margin-top: 10px;
             display: none;
         }
+
+        video {
+            width: 100%;
+            height: 100px;
+        }
     </style>
 </head>
 
 <body>
     <div class="container">
+        <video id="v" playsinline></video>
+        <button id="clean-and-start-btn" onclick="start()">清除当前并开始扫描</button>
+
         <div class="search-box">
             <input type="text" id="barcode" placeholder="请输入条码" />
             <button id="search-btn">查询</button>
@@ -95,7 +114,54 @@
     </div>
 
     <script>
-        document.getElementById('search-btn').addEventListener('click', () => {
+        let s, scanning = 0;
+        const v = document.getElementById('v');
+        const c = document.createElement('canvas');
+        const x = c.getContext('2d');
+
+        async function start() {
+            s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            v.srcObject = s; v.play();
+            document.getElementById('barcode').value = ""
+            const productInfo = document.getElementById('product-info');
+            const errorMessage = document.getElementById('error-message');
+            productInfo.style.display = 'none';
+            errorMessage.style.display = 'none';
+            scanning = 1; loop();
+        }
+        function loop() {
+            if (!scanning) return;
+            c.width = v.videoWidth; c.height = v.videoHeight;
+            x.drawImage(v, 0, 0);
+            try {
+                const d = x.getImageData(0, 0, c.width, c.height);
+                const r = jsQR(d.data, d.width, d.height);
+                if (r) {
+                    document.getElementById('barcode').value = r.data;
+                    if (r.data.includes("qrcode.midea.com")) {
+                        extract()
+                    }
+                    scanning = 0;
+                    request_sn()
+                }
+            } catch (e) { }
+            requestAnimationFrame(loop);
+        }
+        function extract() {
+            const t = document.getElementById('barcode').value;
+            const m = t.match(/dsn=([0-9A-Za-z]+)/);
+            if (m) {
+                let d = m[1];
+                if (d.startsWith('000100')) d = d.slice(6);
+                document.getElementById('barcode').value = d;
+            }
+        }
+
+    </script>
+
+
+    <script>
+        var request_sn = () => {
             const barcode = document.getElementById('barcode').value.trim();
 
             if (!barcode) {
@@ -124,6 +190,7 @@
                             const machineInfo = data.machineInfos[0];
 
                             const md_data = `
+    ${data.womMachineExtVOs[0].pubCreateDate != null ? "已录档案" : "未查到（不代表未录，可能录过隐蔽工程）"}
 ## 商品品牌
 ${machineInfo.brandName}
 ## 产品型号
@@ -147,6 +214,7 @@ ${JSON.stringify(data.womMachineExtVOs[0], null, 4)}
 \`\`\``;
                             document.getElementById('content').innerHTML = marked.parse(md_data);
                             hljs.highlightAll();
+
                             productInfo.style.display = 'block';
                         } else {
                             errorMessage.style.display = 'block';
@@ -165,7 +233,8 @@ ${JSON.stringify(data.womMachineExtVOs[0], null, 4)}
             };
 
             xhr.send(payload);
-        });
+        }
+        document.getElementById('search-btn').addEventListener('click', () => request_sn());
     </script>
 </body>
 
