@@ -1,38 +1,30 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/15.0.7/marked.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.6.0/styles/default.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.6.0/highlight.min.js"></script>
-    <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
-
     <title>条码查询</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.6.0/styles/default.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <style>
-        body,
-        .container {
+        body, .container {
             font-family: 'Microsoft YaHei', sans-serif;
             max-width: 800px;
             margin: 0 auto;
             padding: 20px;
-            background-color: #f5f5f5;
+            background: #f5f5f5;
         }
-
         .container {
-            background-color: white;
+            background: #fff;
             border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 0 10px rgba(0, 0, 0, .1);
         }
-
-        .search-box,
-        .product-info {
+        .search-box {
             display: flex;
             margin-bottom: 20px;
         }
-
         #barcode {
             flex: 1;
             padding: 10px;
@@ -40,169 +32,100 @@
             border: 1px solid #ddd;
             border-radius: 4px 0 0 4px;
         }
-
+        button {
+            padding: 10px 20px;
+            color: #fff;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            margin-left: 8px;
+        }
         #search-btn {
-            padding: 10px 20px;
-            background-color: #0066cc;
-            color: white;
-            border: none;
-            border-radius: 0 4px 4px 0;
-            cursor: pointer;
+            background: #0066cc;
         }
-
-        #clean-and-start-btn {
-            padding: 10px 20px;
-            background-color: #0066cc;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            margin: 20px 0;
-        }
-
         #search-btn:hover {
-            background-color: #0055aa;
+            background: #0055aa;
         }
-
+        #search-btn2 {
+            background: #ff0000;
+            font-weight: bold;
+        }
+        #search-btn2:hover {
+            background: #ff7b7b;
+        }
         .product-info {
             padding: 15px;
-            background-color: #f9f9f9;
+            background: #f9f9f9;
             border-radius: 4px;
             display: none;
+            margin-top: 20px;
         }
-
-        .product-details {
-            display: flex;
-        }
-
-        #content {
-            width: 100%;
-        }
-
         .error-message {
             color: #d9534f;
             margin-top: 10px;
             display: none;
         }
-
-        video {
-            width: 100%;
-            height: 100px;
-        }
     </style>
 </head>
-
 <body>
     <div class="container">
-        <video id="v" playsinline></video>
-        <button id="clean-and-start-btn" onclick="start()">清除当前并开始扫描</button>
-
         <div class="search-box">
-            <input type="text" id="barcode" placeholder="请输入条码" />
-            <button id="search-btn">查询</button>
+            <input type="text" id="barcode" placeholder="请输入条码">
         </div>
+        <button id="search-btn">普通查询</button>
+        <button id="search-btn2">隐蔽档案高级查询</button>
 
-        <div class="error-message" id="error-message">
-            查询失败，请检查条码是否正确或网络连接。
-        </div>
-
+        <div class="error-message" id="error-message">查询失败，请检查条码或网络。</div>
         <div class="product-info" id="product-info">
-            <div class="product-details">
-                <div id="content"></div>
-            </div>
+            <div id="content"></div>
         </div>
     </div>
 
-    <script>
-        let s, scanning = 0;
-        const v = document.getElementById('v');
-        const c = document.createElement('canvas');
-        const x = c.getContext('2d');
-
-        async function start() {
-            s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-            v.srcObject = s; v.play();
-            document.getElementById('barcode').value = ""
-            const productInfo = document.getElementById('product-info');
-            const errorMessage = document.getElementById('error-message');
-            productInfo.style.display = 'none';
-            errorMessage.style.display = 'none';
-            scanning = 1; loop();
-        }
-        function loop() {
-            if (!scanning) return;
-            c.width = v.videoWidth; c.height = v.videoHeight;
-            x.drawImage(v, 0, 0);
-            try {
-                const d = x.getImageData(0, 0, c.width, c.height);
-                const r = jsQR(d.data, d.width, d.height);
-                if (r) {
-                    document.getElementById('barcode').value = r.data;
-                    if (r.data.includes("qrcode.midea.com")) {
-                        extract()
-                    }
-                    scanning = 0;
-                    request_sn()
-                }
-            } catch (e) { }
-            requestAnimationFrame(loop);
-        }
-        function extract() {
-            const t = document.getElementById('barcode').value;
-            const m = t.match(/dsn=([0-9A-Za-z]+)/);
-            if (m) {
-                let d = m[1];
-                if (d.startsWith('000100')) d = d.slice(6);
-                document.getElementById('barcode').value = d;
-            }
-        }
-
-    </script>
-
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/15.0.7/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.6.0/highlight.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <script>
-        var request_sn = () => {
+        /* ================= 普通查询 ================= */
+        document.getElementById('search-btn').addEventListener('click', request_sn);
+        function request_sn() {
             const barcode = document.getElementById('barcode').value.trim();
-
-            if (!barcode) {
-                alert('请输入条码');
-                return;
-            }
+            if (!barcode) { alert('请输入条码'); return; }
 
             const productInfo = document.getElementById('product-info');
-            const errorMessage = document.getElementById('error-message');
+            const errorMsg = document.getElementById('error-message');
             productInfo.style.display = 'none';
-            errorMessage.style.display = 'none';
+            errorMsg.style.display = 'none';
 
-            const url = "https://apiprod.midea.com/c-css/c-css-ipms/api/mmp/appsearchfromsn";
-            const payload = JSON.stringify({ "productSn1": barcode });
+            const url = 'https://apiprod.midea.com/c-css/c-css-ipms/api/mmp/appsearchfromsn';
+            const payload = JSON.stringify({ productSn1: barcode });
 
             const xhr = new XMLHttpRequest();
-            xhr.open("POST", url, true);
-            xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+            xhr.open('POST', url, true);
+            xhr.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
 
             xhr.onload = () => {
                 if (xhr.status === 200) {
                     try {
                         const data = JSON.parse(xhr.responseText);
-
                         if (data.status && data.machineInfos?.length) {
-                            const machineInfo = data.machineInfos[0];
-
-                            const md_data = `
-    ${data.womMachineExtVOs[0].pubCreateDate != null ? "已录档案" : "未查到（不代表未录，可能录过隐蔽工程）"}
+                            const m = data.machineInfos[0];
+                            const md = `
+\`\`\`
+${data.womMachineExtVOs?.[0]?.pubCreateDate != null ? '已录档案' : '未查到（不代表未录，可能录过隐蔽工程）'}
+\`\`\`
 ## 商品品牌
-${machineInfo.brandName}
+${m.brandName}
 ## 产品型号
-${machineInfo.productModel}
+${m.productModel}
 ## 产品全名
-${machineInfo.productDesc}
+${m.productDesc}
 ## 生产日期
-${machineInfo.productionDate}
+${m.productionDate}
 ## 原始信息
 产品信息：
 \`\`\`json
-${JSON.stringify(data.machineInfos[0], null, 4)}
+${JSON.stringify(m, null, 4)}
 \`\`\`
 物流信息：
 \`\`\`json
@@ -212,30 +135,71 @@ ${JSON.stringify(data.sourceBillNoList, null, 4)}
 \`\`\`json
 ${JSON.stringify(data.womMachineExtVOs[0], null, 4)}
 \`\`\``;
-                            document.getElementById('content').innerHTML = marked.parse(md_data);
+                            document.getElementById('content').innerHTML = marked.parse(md);
                             hljs.highlightAll();
-
                             productInfo.style.display = 'block';
                         } else {
-                            errorMessage.style.display = 'block';
+                            errorMsg.style.display = 'block';
                         }
                     } catch (e) {
-                        console.error('解析响应失败:', e);
-                        errorMessage.style.display = 'block';
+                        console.error(e);
+                        errorMsg.style.display = 'block';
                     }
                 } else {
-                    errorMessage.style.display = 'block';
+                    errorMsg.style.display = 'block';
                 }
             };
-
-            xhr.onerror = () => {
-                errorMessage.style.display = 'block';
-            };
-
+            xhr.onerror = () => errorMsg.style.display = 'block';
             xhr.send(payload);
         }
-        document.getElementById('search-btn').addEventListener('click', () => request_sn());
+
+        /* ================= 隐蔽高级查询 ================= */
+        document.getElementById('search-btn2').addEventListener('click', hiddenQuery);
+
+        async function hiddenQuery() {
+            const sn = document.getElementById('barcode').value.trim();
+            if (!sn) { Swal.fire('提示', '请输入条码', 'warning'); return; }
+
+            Swal.fire({ title: '查询中…', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+            const url = 'https://apiprod.midea.com/c-css/wom-bff-ipms/bff/mmp/appSearchFromSnNew';
+            const payload = {
+                parseType: '10',
+                productSn1: sn,
+                businessFlag: 'YBAZ',
+                orgCode: 'CS023'
+            };
+
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const json = await res.json();
+
+                let html = '';
+                if (!json.status) {
+                    const fw = json.errorMsg?.match(/FW\d{10,12}/)?.[0] || '无';
+                    html = `<b>条码：</b>${sn}<br>
+                            <b>状态：</b>${json.status}<br>
+                            <b>FW 单号：</b>${fw}<br>
+                            <b>结论：</b>记录在案`;
+                } else if (json.errorCode === '11') {
+                    html = `<b>条码：</b>${sn}<br>
+                            <b>状态：</b>${json.status}<br>
+                            <b>提示：</b>${json.errorMsg}`;
+                } else {
+                    html = `<b>条码：</b>${sn}<br>
+                            <b>型号：</b>${json.productModel || '未知'}`;
+                }
+
+                Swal.fire({ title: '隐蔽高级查询结果', html, icon: 'info' });
+            } catch (e) {
+                console.error(e);
+                Swal.fire('错误', '网络异常或接口返回异常', 'error');
+            }
+        }
     </script>
 </body>
-
 </html>
