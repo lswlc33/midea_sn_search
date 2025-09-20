@@ -59,12 +59,14 @@
             background: #0055aa;
         }
 
-        #search-btn2 {
+        #search-btn2,
+        #search-btn3 {
             background: #ff0000;
             font-weight: bold;
         }
 
-        #search-btn2:hover {
+        #search-btn2:hover,
+        #search-btn3:hover {
             background: #ff7b7b;
         }
 
@@ -90,7 +92,8 @@
             <input type="text" id="barcode" placeholder="请输入条码">
         </div>
         <button id="search-btn">普通查询</button>
-        <button id="search-btn2">隐蔽档案高级查询</button>
+        <button id="search-btn2">隐蔽档案高级查询（内）</button>
+        <button id="search-btn3">隐蔽档案高级查询（外）</button>
 
         <div class="error-message" id="error-message">查询失败，请检查条码或网络。</div>
         <div class="product-info" id="product-info">
@@ -215,6 +218,54 @@ ${JSON.stringify(data.womMachineExtVOs[0], null, 4)}
             }
         };
 
+
+        /* ================= 隐蔽外机查询 ================= */
+        document.getElementById('search-btn3').addEventListener('click', hiddenQuery3);
+
+        async function hiddenQuery3() {
+            const sn = document.getElementById('barcode').value.trim();
+            if (!sn) { Swal.fire('提示', '请输入条码', 'warning'); return; }
+
+            Swal.fire({ title: '查询中…', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+            const url = 'https://apiprod.midea.com/c-css/wom-bff-ipms/bff/mmp/appSearchFromSnNew';
+            const payload = {
+                parseType: 11,
+                productSn2: sn,
+                businessFlag: 'YBAZ',
+                oneToManyCheckFlag: 'Y',
+            }
+
+            try {
+                const res3 = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const json = await res3.json();
+
+                let html = '';
+                if (!json.status) {
+                    const fw = json.errorMsg?.match(/FW\d{10,12}/)?.[0] || '无';
+                    html = `<b>条码：</b>${sn}<br>
+                            <b>状态：</b>${json.status}<br>
+                            <b>FW 单号：</b>${fw}<br>
+                            <b>结论：</b>记录在案`;
+                } else if (json.errorCode === '11') {
+                    html = `<b>条码：</b>${sn}<br>
+                            <b>状态：</b>${json.status}<br>
+                            <b>提示：</b>${json.errorMsg}`;
+                } else {
+                    html = `<b>条码：</b>${sn}<br>
+                            <b>型号：</b>${json.productModel || '未知'}`;
+                }
+
+                Swal.fire({ title: '隐蔽高级查询结果', html, icon: 'info' });
+            } catch (e) {
+                console.error(e);
+                Swal.fire('错误', '网络异常或接口返回异常', 'error');
+            }
+        };
 
 
     </script>
