@@ -99,8 +99,10 @@
         <div class="product-info" id="product-info">
             <div id="content"></div>
         </div>
-    </div>
 
+    </div>
+    <div style="margin: 20px 0;right: 0;display: flex;justify-content: flex-end;"><a style="color: #aaa;"
+            href="https://github.com/lswlc33/midea_sn_search/">关于</a></div>
 
     <script>
         /* ================= 普通查询 ================= */
@@ -170,104 +172,71 @@ ${JSON.stringify(data.womMachineExtVOs[0], null, 4)}
             xhr.send(payload);
         }
 
-
-        /* ================= 隐蔽档案查询 ================= */
-        document.getElementById('search-btn2').addEventListener('click', hiddenQuery);
-
-        async function hiddenQuery() {
-            const sn = document.getElementById('barcode').value.trim();
-            if (!sn) { Swal.fire('提示', '请输入条码', 'warning'); return; }
-
-            Swal.fire({ title: '查询中…', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-
+        /* ================= 内外机查询 ================= */
+        async function productSnCheck(sn, outside = 0) {
             const url = 'https://apiprod.midea.com/c-css/wom-bff-ipms/bff/mmp/appSearchFromSnNew';
             const payload = {
-                productSn2: sn,
                 businessFlag: 'YBAZ',
-                oneToManyCheckFlag: 'Y',
-            }
+                parseType: outside ? '11' : '10',
+                ...(outside
+                    ? { productSn2: sn, oneToManyCheckFlag: 'Y' }
+                    : { productSn1: sn, orgCode: 'CS023' }),
+            };
 
             try {
-                const res3 = await fetch(url, {
+                const res = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify(payload),
                 });
-                const json = await res3.json();
+                const json = await res.json();
 
                 let html = '';
+                let iconType = 'info';
+
                 if (!json.status) {
                     const fw = json.errorMsg?.match(/FW\d{10,12}/)?.[0] || '无';
                     html = `<b>条码：</b>${sn}<br>
-                            <b>状态：</b>${json.status}<br>
-                            <b>FW 单号：</b>${fw}<br>
-                            <b>结论：</b>记录在案`;
+                    <b>状态：</b>${json.status}<br>
+                    <b>FW 单号：</b>${fw}<br>
+                    <b>结论：</b>记录在案`;
+                    iconType = 'error';
                 } else if (json.errorCode === '11') {
                     html = `<b>条码：</b>${sn}<br>
-                            <b>状态：</b>${json.status}<br>
-                            <b>提示：</b>${json.errorMsg}`;
+                    <b>状态：</b>${json.status}<br>
+                    <b>提示：</b>${json.errorMsg}`;
+                    iconType = 'error';
                 } else {
                     html = `<b>条码：</b>${sn}<br>
-                            <b>型号：</b>${json.productModel || '未知'}`;
+                    <b>状态：</b>${json.status}<br>
+                    <b>型号：</b>${json.womMachineExtVOs?.[0]?.productModel || '未知'}`;
+                    iconType = 'success';
                 }
 
-                Swal.fire({ title: '隐蔽高级查询结果', html, icon: 'info' });
+                Swal.fire({
+                    title: outside ? '隐蔽外机查询结果' : '隐蔽内机查询结果',
+                    html,
+                    icon: iconType
+                });
             } catch (e) {
                 console.error(e);
                 Swal.fire('错误', '网络异常或接口返回异常', 'error');
             }
-        };
+        }
 
-
-        /* ================= 隐蔽外机查询 ================= */
-        document.getElementById('search-btn3').addEventListener('click', hiddenQuery3);
-
-        async function hiddenQuery3() {
+        document.getElementById('search-btn2').addEventListener('click', () => {
             const sn = document.getElementById('barcode').value.trim();
-            if (!sn) { Swal.fire('提示', '请输入条码', 'warning'); return; }
-
+            if (!sn) return Swal.fire('提示', '请输入条码', 'warning');
             Swal.fire({ title: '查询中…', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            productSnCheck(sn, 0);
+        });
 
-            const url = 'https://apiprod.midea.com/c-css/wom-bff-ipms/bff/mmp/appSearchFromSnNew';
-            const payload = {
-                parseType: 11,
-                productSn2: sn,
-                businessFlag: 'YBAZ',
-                oneToManyCheckFlag: 'Y',
-            }
-
-            try {
-                const res3 = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                const json = await res3.json();
-
-                let html = '';
-                if (!json.status) {
-                    const fw = json.errorMsg?.match(/FW\d{10,12}/)?.[0] || '无';
-                    html = `<b>条码：</b>${sn}<br>
-                            <b>状态：</b>${json.status}<br>
-                            <b>FW 单号：</b>${fw}<br>
-                            <b>结论：</b>记录在案`;
-                } else if (json.errorCode === '11') {
-                    html = `<b>条码：</b>${sn}<br>
-                            <b>状态：</b>${json.status}<br>
-                            <b>提示：</b>${json.errorMsg}`;
-                } else {
-                    html = `<b>条码：</b>${sn}<br>
-                            <b>型号：</b>${json.productModel || '未知'}`;
-                }
-
-                Swal.fire({ title: '隐蔽高级查询结果', html, icon: 'info' });
-            } catch (e) {
-                console.error(e);
-                Swal.fire('错误', '网络异常或接口返回异常', 'error');
-            }
-        };
-
-
+        document.getElementById('search-btn3').addEventListener('click', () => {
+            const sn = document.getElementById('barcode').value.trim();
+            if (!sn) return Swal.fire('提示', '请输入条码', 'warning');
+            Swal.fire({ title: '查询中…', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            productSnCheck(sn, 1);
+        });
     </script>
 </body>
 
