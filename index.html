@@ -25,49 +25,54 @@
 
         .container {
             background: #fff;
-            border-radius: 8px;
+            border-radius: 30px;
             box-shadow: 0 0 10px rgba(0, 0, 0, .1);
         }
 
         .search-box {
             display: flex;
-            margin-bottom: 20px;
+            margin-bottom: 10px;
         }
 
         #barcode {
             flex: 1;
-            padding: 10px;
+            padding: 10px 15px;
             font-size: 16px;
-            border: 1px solid #ddd;
-            border-radius: 4px 0 0 4px;
+            border: 3px solid #ddd;
+            border-radius: 50px;
+            outline: none;
         }
 
         button {
-            padding: 10px 20px;
+            padding: 5px 10px;
             color: #fff;
             border: none;
-            border-radius: 20px;
+            border-radius: 50px;
             cursor: pointer;
-            margin-left: 8px;
+            margin: 5px;
+            box-shadow: 2px 2px 5px 0.5px rgba(0, 0, 0, 0.5);
+            transition: 0.3s;
+            
+            
         }
 
         #search-btn {
-            background: #0066cc;
+            background: #0066cccc;
         }
 
         #search-btn:hover {
-            background: #0055aa;
+            background: #0080ffcc;
         }
 
         #search-btn2,
         #search-btn3 {
-            background: #ff0000;
+            background: #ff0000cc;
             font-weight: bold;
         }
 
         #search-btn2:hover,
         #search-btn3:hover {
-            background: #ff7b7b;
+            background: #ff7b7bcc;
         }
 
         .product-info {
@@ -91,9 +96,11 @@
         <div class="search-box">
             <input type="text" id="barcode" placeholder="请输入条码">
         </div>
-        <button id="search-btn">普通查询</button>
-        <button id="search-btn2">隐蔽档案高级查询（内）</button>
-        <button id="search-btn3">隐蔽档案高级查询（外）</button>
+        <button id="search-btn">普通内机查询</button>
+        <button id="search-btn2">隐蔽内机查询</button>
+        <button id="search-btn3">隐蔽外机查询</button>
+
+
 
         <div class="error-message" id="error-message">查询失败，请检查条码或网络。</div>
         <div class="product-info" id="product-info">
