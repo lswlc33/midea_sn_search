@@ -65,17 +65,20 @@
             outline: none;
         }
 
+        #btn-box{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
         button {
-            padding: 5px 10px;
+            padding: 12px 10px;
             color: #fff;
             border: none;
-            border-radius: 50px;
+            border-radius: 15px;
             cursor: pointer;
-            margin: 5px;
             box-shadow: 2px 2px 5px 0.5px rgba(0, 0, 0, 0.5);
             transition: 0.3s;
-
-
         }
 
         #search-btn {
@@ -123,9 +126,12 @@
         <div class="search-box">
             <input type="text" id="barcode" placeholder="请输入条码">
         </div>
-        <button id="search-btn">普通内机查询</button>
-        <button id="search-btn2">隐蔽内机查询</button>
-        <button id="search-btn3">隐蔽外机查询</button>
+        <div id="btn-box">
+            <button id="search-btn">普通内机查询</button>
+            <button id="search-btn2">隐蔽内机查询</button>
+            <button id="search-btn3">隐蔽外机查询</button>
+        </div>
+
 
 
 
