@@ -65,13 +65,14 @@
             outline: none;
         }
 
-        #btn-box{
+        #btn-box {
             display: flex;
             flex-wrap: wrap;
             gap: 10px;
         }
 
         button {
+            opacity: 0.75;
             padding: 12px 10px;
             color: #fff;
             border: none;
@@ -98,6 +99,11 @@
         #search-btn2:hover,
         #search-btn3:hover {
             background: #ff7b7bcc;
+        }
+
+        #search-btn4 {
+            background: green;
+            font-weight: bold;
         }
 
         .product-info {
@@ -130,6 +136,7 @@
             <button id="search-btn">普通内机查询</button>
             <button id="search-btn2">隐蔽内机查询</button>
             <button id="search-btn3">隐蔽外机查询</button>
+            <button id="search-btn4" onclick="window.location.href='batch.html'">批量查询</button>
         </div>
 
 
