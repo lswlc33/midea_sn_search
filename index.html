@@ -16,22 +16,18 @@
     <style>
         #pic {
             opacity: 0.2;
-
             position: fixed;
             bottom: 0;
             left: 50%;
             transform: translateX(-50%);
-
             width: 90%;
             max-width: 600px;
             height: 300px;
-
             background-color: #f5f5f5;
             background-image: url(https://klbqcp-web-cdn.idreamsky.com/prod/static/cn_img_v4/img/common/role/michele/img.png);
             background-repeat: no-repeat;
             background-position: center top;
             background-size: 80%;
-
             user-select: none;
             pointer-events: none;
         }
@@ -90,14 +86,13 @@
             background: #0080ffcc;
         }
 
-        #search-btn2,
-        #search-btn3 {
+        /* 合并后的隐蔽查询按钮样式 */
+        #search-btn-hidden {
             background: #ff0000cc;
             font-weight: bold;
         }
 
-        #search-btn2:hover,
-        #search-btn3:hover {
+        #search-btn-hidden:hover {
             background: #ff7b7bcc;
         }
 
@@ -133,26 +128,23 @@
             <input type="text" id="barcode" placeholder="请输入条码">
         </div>
         <div id="btn-box">
-            <button id="search-btn">普通内机查询</button>
-            <button id="search-btn2">隐蔽内机查询</button>
-            <button id="search-btn3">隐蔽外机查询</button>
+            <button id="search-btn">通用内机查询</button>
+            <button id="search-btn-hidden">家中隐蔽查询</button>
             <button id="search-btn4" onclick="window.location.href='batch.html'">批量查询</button>
         </div>
 
-
-
-
-        <div class="error-message" id="error-message">查询失败，请检查条码或网络。</div>
+        <div class="error-message" id="error-message">查询失败，请检查条码或网络，暂不支持家用外机查询</div>
         <div class="product-info" id="product-info">
             <div id="content"></div>
         </div>
 
     </div>
-    <div style="margin: 20px 0;right: 0;display: flex;justify-content: flex-end;"><a style="color: #aaa;"
-            href="https://github.com/lswlc33/midea_sn_search/">关于</a></div>
+    <div style="margin: 20px 0;right: 0;display: flex;justify-content: flex-end;">
+        <a style="color: #aaa;" href="https://github.com/lswlc33/midea_sn_search/">关于</a>
+    </div>
 
     <script>
-        /* ================= 普通查询 ================= */
+        /* ================= 普通查询================= */
         document.getElementById('search-btn').addEventListener('click', request_sn);
         function request_sn() {
             const barcode = document.getElementById('barcode').value.trim();
@@ -184,23 +176,25 @@ ${data.womMachineExtVOs?.[0]?.pubCreateDate != null ? '已录档案' : '未查�
 ${m.brandName}
 ## 产品型号
 ${m.productModel}
-## 产品全名
-${m.productDesc}
 ## 生产日期
 ${m.productionDate}
 ## 原始信息
-产品信息：
+<details>
+<summary style="cursor:pointer;">点击展开查看原始 JSON 数据</summary>
+
+### 产品信息
 \`\`\`json
 ${JSON.stringify(m, null, 4)}
 \`\`\`
-物流信息：
+### 物流信息
 \`\`\`json
 ${JSON.stringify(data.sourceBillNoList, null, 4)}
 \`\`\`
-售后信息：
+### 售后信息
 \`\`\`json
 ${JSON.stringify(data.womMachineExtVOs[0], null, 4)}
-\`\`\``;
+\`\`\`
+</details>`;
                             document.getElementById('content').innerHTML = marked.parse(md);
                             hljs.highlightAll();
                             productInfo.style.display = 'block';
@@ -219,8 +213,9 @@ ${JSON.stringify(data.womMachineExtVOs[0], null, 4)}
             xhr.send(payload);
         }
 
-        /* ================= 内外机查询 ================= */
-        async function productSnCheck(sn, outside = 0) {
+        /* ================= 隐蔽查询================= */
+
+        async function fetchSnStatus(sn, outside = 0) {
             const url = 'https://apiprod.midea.com/c-css/wom-bff-ipms/bff/mmp/appSearchFromSnNew';
             const payload = {
                 businessFlag: 'YBAZ',
@@ -238,52 +233,76 @@ ${JSON.stringify(data.womMachineExtVOs[0], null, 4)}
                 });
                 const json = await res.json();
 
-                let html = '';
-                let iconType = 'info';
-
                 if (!json.status) {
                     const fw = json.errorMsg?.match(/FW\d{10,12}/)?.[0] || '无';
-                    html = `<b>条码：</b>${sn}<br>
-                    <b>状态：</b>${json.status}<br>
-                    <b>FW 单号：</b>${fw}<br>
-                    <b>结论：</b>记录在案`;
-                    iconType = 'error';
+                    return { pass: false, msg: `FW单号: ${fw}`, fullMsg: json.errorMsg };
                 } else if (json.errorCode === '11') {
-                    html = `<b>条码：</b>${sn}<br>
-                    <b>状态：</b>${json.status}<br>
-                    <b>提示：</b>${json.errorMsg}`;
-                    iconType = 'error';
+                    return { pass: false, msg: json.errorMsg, fullMsg: json.errorMsg };
                 } else {
-                    html = `<b>条码：</b>${sn}<br>
-                    <b>状态：</b>${json.status}<br>
-                    <b>型号：</b>${json.womMachineExtVOs?.[0]?.productModel || '未知'}`;
-                    iconType = 'success';
+                    // 通过
+                    return {
+                        pass: true,
+                        model: json.womMachineExtVOs?.[0]?.productModel || '未知型号'
+                    };
                 }
-
-                Swal.fire({
-                    title: outside ? '隐蔽外机查询结果' : '隐蔽内机查询结果',
-                    html,
-                    icon: iconType
-                });
             } catch (e) {
                 console.error(e);
-                Swal.fire('错误', '网络异常或接口返回异常', 'error');
+                return { pass: false, msg: '网络或接口异常', fullMsg: e.message };
             }
         }
 
-        document.getElementById('search-btn2').addEventListener('click', () => {
+        // 按钮点击事件
+        document.getElementById('search-btn-hidden').addEventListener('click', async () => {
             const sn = document.getElementById('barcode').value.trim();
             if (!sn) return Swal.fire('提示', '请输入条码', 'warning');
-            Swal.fire({ title: '查询中…', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-            productSnCheck(sn, 0);
+
+            Swal.fire({
+                title: '隐蔽全项查询中…',
+                html: '正在检查内机数据...',
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading()
+            });
+
+            // 1. 检查内机
+            const inResult = await fetchSnStatus(sn, 0);
+
+            if (!inResult.pass) {
+                Swal.fire({
+                    title: '内机条码',
+                    html: `条码：${sn}<br>
+                           结果：<span style="color:red">已录隐蔽档案</span><br>
+                           ${inResult.msg}`,
+                    icon: 'error'
+                });
+                return;
+            }
+
+            Swal.update({ html: '内机通过，正在检查外机数据...' });
+
+            // 2. 检查外机
+            const outResult = await fetchSnStatus(sn, 1);
+
+            if (!outResult.pass) {
+                Swal.fire({
+                    title: '外机条码',
+                    html: `条码：${sn}<br>
+                           结果：<span style="color:red">已录隐蔽档</span><br>
+                           ${outResult.msg}`,
+                    icon: 'error'
+                });
+                return;
+            }
+
+            // 3. 全部通过
+            Swal.fire({
+                title: '很好！',
+                html: `条码：${sn}<br>
+                       状态：<span style="color:green">未查询到隐蔽记录</span><br>
+                       型号：${inResult.model}`,
+                icon: 'success'
+            });
         });
 
-        document.getElementById('search-btn3').addEventListener('click', () => {
-            const sn = document.getElementById('barcode').value.trim();
-            if (!sn) return Swal.fire('提示', '请输入条码', 'warning');
-            Swal.fire({ title: '查询中…', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-            productSnCheck(sn, 1);
-        });
     </script>
 </body>
 
