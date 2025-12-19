@@ -114,7 +114,7 @@
     <script>
         let stopFlag = false;
 
-        // 内外机查询函数
+        // ================= 核心检测逻辑 (已更新) =================
         async function productSnCheck(sn, outside = 0) {
             const url = "https://apiprod.midea.com/c-css/wom-bff-ipms/bff/mmp/appSearchFromSnNew";
             const payload = {
@@ -133,21 +133,50 @@
                 });
                 const json = await res.json();
 
-                if (!json.status) {
-                    const match = json.errorMsg?.match(/FW\d{10,12}/);
-                    const fw = match ? match[0] : "无";
-                    return [false, `${fw} 记录在案`];
-                } else if (json.errorCode === "11") {
-                    return [true, json.errorMsg];
-                } else {
-                    return [true, json.womMachineExtVOs?.[0]?.productModel || "未知"];
+                // 预处理机器信息
+                const machineInfo = json.womMachineExtVOs?.[0];
+                const modelName = machineInfo?.productModel || "未知型号";
+
+                // --- 1. 隐蔽工程档案重复 (FW单号) ---
+                if (json.errorCode === 'WOM10099999') {
+                    const fw = json.errorMsg?.match(/FW\d+/)?.[0] || '未知单号';
+                    return [false, `已录隐蔽 ${fw}`];
                 }
+
+                // --- 2. 安装档案重复 (AZ单号) ---
+                if (json.errorCode === 'W000003') {
+                    const sourceText = json.errorMsg || machineInfo?.rowDesc || '';
+                    const az = sourceText.match(/AZ\d+/)?.[0] || '未知单号';
+                    return [false, `已录安装 ${az}`];
+                }
+
+                // --- 3. 退换货白名单 ---
+                if (json.errorCode === '20') {
+                    return [false, json.supErrMsg || '退换货白名单限制'];
+                }
+
+                // --- 4. 常规错误/其他FW单号兜底 ---
+                if (!json.status) {
+                    const fw = json.errorMsg?.match(/FW\d{10,12}/)?.[0];
+                    const msg = fw ? `FW单号: ${fw}` : (json.errorMsg || "接口返回错误");
+                    return [false, msg];
+                }
+
+                // --- 5. 无出入库记录 ---
+                if (machineInfo && machineInfo.lbcsFlag === 'N') {
+                    return [false, '无出入库记录条码'];
+                }
+
+                // --- 6. 成功 ---
+                return [true, modelName];
+
             } catch (e) {
                 console.error(e);
-                return [false, "网络异常"];
+                return [false, "网络或接口异常"];
             }
         }
 
+        // ================= 批量执行逻辑 (保持原样) =================
         document.getElementById("run-btn").addEventListener("click", async () => {
             const runBtn = document.getElementById("run-btn");
             const stopBtn = document.getElementById("stop-btn");
@@ -162,7 +191,7 @@
             const lines = text.split(/\n/).map(l => l.trim()).filter(Boolean);
             let results = [];
 
-            // 按钮状态更新
+            // UI状态更新
             stopFlag = false;
             runBtn.disabled = true;
             runBtn.textContent = "查询中…";
@@ -171,39 +200,56 @@
             for (const line of lines) {
                 if (stopFlag) break;
 
+                // 支持一行多个条码，以空格分隔
                 const parts = line.split(/\s+/);
+
                 for (const sn of parts) {
                     if (stopFlag) break;
                     if (!sn) continue;
 
+                    // 1. 查内机
                     const [insn, inmsg] = await productSnCheck(sn, 0);
                     if (stopFlag) break;
+
+                    // 2. 查外机 (注意：如果只要内机不过就不查外机，可以在这里加逻辑，目前是全查)
                     const [outsn, outmsg] = await productSnCheck(sn, 1);
 
                     let result;
+                    // 逻辑：内机不过 -> 报内机错；内机过但外机不过 -> 报外机错；都过 -> 显示内机型号
                     if (!insn) {
-                        result = `${sn} False ${inmsg}`;
+                        result = `${sn} False ${inmsg}`; // 内机挂了
                     } else if (!outsn) {
-                        result = `${sn} False ${outmsg}`;
+                        result = `${sn} False ${outmsg}`; // 外机挂了
                     } else {
-                        result = `${sn} True ${inmsg}`;
+                        result = `${sn} True ${inmsg}`;   // 都通过 (显示内机型号)
                     }
+
                     results.push(result);
 
+                    // 实时更新显示
                     output.textContent = results.join("\n");
-                    await new Promise(r => setTimeout(r, 300)); // 限速
+
+                    // 滚动到底部
+                    output.scrollTop = output.scrollHeight;
+
+                    await new Promise(r => setTimeout(r, 300)); // 限速 300ms
                 }
             }
 
-            // 恢复按钮
+            // 恢复按钮状态
             runBtn.disabled = false;
             runBtn.textContent = "开始查询";
             stopBtn.style.display = "none";
         });
 
+        // 停止按钮逻辑
         document.getElementById("stop-btn").addEventListener("click", () => {
             stopFlag = true;
         });
+
+
+
+
     </script>
 </body>
 
