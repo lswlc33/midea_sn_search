@@ -139,7 +139,7 @@
             <button id="search-btn5" onclick="window.location.href='batch-2.html'">家用批量查询</button>
         </div>
 
-        <div class="error-message" id="error-message">查询失败，请检查条码或网络，暂不支持家用外机查询</div>
+        <div class="error-message" id="error-message">查询失败，请检查条码或网络，也可能不支持此方式查询</div>
         <div class="product-info" id="product-info">
             <div id="content"></div>
         </div>
@@ -219,7 +219,7 @@ ${JSON.stringify(data.womMachineExtVOs[0], null, 4)}
             xhr.send(payload);
         }
 
-        /* ================= 隐蔽查询================= */
+        /* ================= 隐蔽查询 (逻辑更新版) ================= */
 
         async function fetchSnStatus(sn, outside = 0) {
             const url = 'https://apiprod.midea.com/c-css/wom-bff-ipms/bff/mmp/appSearchFromSnNew';
@@ -239,25 +239,63 @@ ${JSON.stringify(data.womMachineExtVOs[0], null, 4)}
                 });
                 const json = await res.json();
 
-                if (!json.status) {
-                    const fw = json.errorMsg?.match(/FW\d{10,12}/)?.[0] || '无';
-                    return { pass: false, msg: `FW单号: ${fw}`, fullMsg: json.errorMsg };
-                } else if (json.errorCode === '11') {
-                    return { pass: false, msg: json.errorMsg, fullMsg: json.errorMsg };
-                } else {
-                    // 通过
+                const machineInfo = json.womMachineExtVOs?.[0];
+                const modelName = machineInfo?.productModel || '未知型号';
+
+                if (json.errorCode === 'WOM10099999') {
+                    const fw = json.errorMsg?.match(/FW\d+/)?.[0] || '未知单号';
                     return {
-                        pass: true,
-                        model: json.womMachineExtVOs?.[0]?.productModel || '未知型号'
+                        pass: false,
+                        msg: `已录隐蔽 ${fw}`,
+                        fullMsg: json.errorMsg
                     };
                 }
+
+                if (json.errorCode === 'W000003') {
+                    // 尝试从 errorMsg 或 rowDesc 中提取 AZ 单号
+                    const sourceText = json.errorMsg || machineInfo?.rowDesc || '';
+                    const az = sourceText.match(/AZ\d+/)?.[0] || '未知单号';
+                    return {
+                        pass: false,
+                        msg: `已录安装 ${az}`,
+                        fullMsg: json.errorMsg
+                    };
+                }
+
+                if (json.errorCode === '20') {
+                    return {
+                        pass: false,
+                        msg: '该条码做过鉴定，需申请白名单才可提交隐蔽安装。',
+                        fullMsg: json.supErrMsg
+                    };
+                }
+
+                if (!json.status) {
+                    const fw = json.errorMsg?.match(/FW\d+/)?.[0];
+                    const shortMsg = fw ? `FW单号: ${fw}` : (json.errorMsg || '未知错误');
+                    return { pass: false, msg: shortMsg, fullMsg: json.errorMsg };
+                }
+
+                if (machineInfo && machineInfo.lbcsFlag === 'N') {
+                    return {
+                        pass: false,
+                        msg: '无出入库记录条码',
+                        fullMsg: 'lbcsFlag is N'
+                    };
+                }
+
+                return {
+                    pass: true,
+                    model: modelName
+                };
+
             } catch (e) {
                 console.error(e);
                 return { pass: false, msg: '网络或接口异常', fullMsg: e.message };
             }
         }
 
-        // 按钮点击事件
+        // 按钮点击事件 (保持原有逻辑，只需调用更新后的函数)
         document.getElementById('search-btn-hidden').addEventListener('click', async () => {
             const sn = document.getElementById('barcode').value.trim();
             if (!sn) return Swal.fire('提示', '请输入条码', 'warning');
@@ -274,10 +312,10 @@ ${JSON.stringify(data.womMachineExtVOs[0], null, 4)}
 
             if (!inResult.pass) {
                 Swal.fire({
-                    title: '内机条码',
+                    title: '内机异常',
                     html: `条码：${sn}<br>
-                           结果：<span style="color:red">已录隐蔽档案</span><br>
-                           ${inResult.msg}`,
+                   结果：<span style="color:red">${inResult.msg}</span><br>
+                   <span style="font-size:12px;color:gray">${inResult.model || ''}</span>`,
                     icon: 'error'
                 });
                 return;
@@ -290,10 +328,9 @@ ${JSON.stringify(data.womMachineExtVOs[0], null, 4)}
 
             if (!outResult.pass) {
                 Swal.fire({
-                    title: '外机条码',
+                    title: '外机异常',
                     html: `条码：${sn}<br>
-                           结果：<span style="color:red">已录隐蔽档</span><br>
-                           ${outResult.msg}`,
+                   结果：<span style="color:red">${outResult.msg}</span>`,
                     icon: 'error'
                 });
                 return;
@@ -303,8 +340,8 @@ ${JSON.stringify(data.womMachineExtVOs[0], null, 4)}
             Swal.fire({
                 title: '很好！',
                 html: `条码：${sn}<br>
-                       状态：<span style="color:green">未查询到隐蔽记录</span><br>
-                       型号：${inResult.model}`,
+               状态：<span style="color:green">未查询到隐蔽记录</span><br>
+               型号：${inResult.model}`,
                 icon: 'success'
             });
         });
