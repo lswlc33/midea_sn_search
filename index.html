@@ -276,7 +276,7 @@ ${JSON.stringify(data.womMachineExtVOs[0], null, 4)}
                     return { pass: false, msg: shortMsg, fullMsg: json.errorMsg };
                 }
 
-                if (machineInfo && machineInfo.lbcsFlag === 'N') {
+                if (machineInfo.lbcsFlag || machineInfo.outsideBarcodeLbcsFlag === 'N') {
                     return {
                         pass: false,
                         msg: '无出入库记录条码',
