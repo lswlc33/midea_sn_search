@@ -156,10 +156,12 @@
                 }
 
                 // --- 4. 无出入库记录 ---
-                if (machineInfo.lbcsFlag || machineInfo.outsideBarcodeLbcsFlag === 'N') {
+                if (machineInfo.lbcsFlag === 'N') {
                     return [false, '无出入库记录条码'];
                 }
-
+                if (outside || machineInfo.outsideBarcodeLbcsFlag === 'N') {
+                    return [false, '无出入库记录条码'];
+                }
 
                 // --- 5. 常规错误/其他FW单号兜底 ---
                 if (!json.status) {
@@ -167,7 +169,6 @@
                     const msg = fw ? `FW单号: ${fw}` : (json.errorMsg || "接口返回错误");
                     return [false, msg];
                 }
-
 
                 // --- 6. 成功 ---
                 return [true, modelName];
