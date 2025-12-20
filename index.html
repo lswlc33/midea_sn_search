@@ -254,10 +254,10 @@ ${JSON.stringify(data.womMachineExtVOs[0], null, 4)}
                 if (json.errorCode === 'W000003') {
                     // 尝试从 errorMsg 或 rowDesc 中提取 AZ 单号
                     const sourceText = json.errorMsg || machineInfo?.rowDesc || '';
-                    const az = sourceText.match(/AZ\d+/)?.[0] || '未知单号';
+                    const az = sourceText.match(/AZ\d+/)?.[0] || sourceText.match(/JD\d+/)?.[0] || '未知单号';
                     return {
                         pass: false,
-                        msg: `已录安装 ${az}`,
+                        msg: `已录档案 ${az}`,
                         fullMsg: json.errorMsg
                     };
                 }
