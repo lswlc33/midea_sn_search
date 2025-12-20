@@ -159,7 +159,7 @@
                 if (machineInfo.lbcsFlag === 'N') {
                     return [false, '无出入库记录条码'];
                 }
-                if (outside || machineInfo.outsideBarcodeLbcsFlag === 'N') {
+                if (outside && machineInfo.outsideBarcodeLbcsFlag === 'N') {
                     return [false, '无出入库记录条码'];
                 }
 
