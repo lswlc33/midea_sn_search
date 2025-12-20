@@ -276,7 +276,15 @@ ${JSON.stringify(data.womMachineExtVOs[0], null, 4)}
                     return { pass: false, msg: shortMsg, fullMsg: json.errorMsg };
                 }
 
-                if (machineInfo.lbcsFlag || machineInfo.outsideBarcodeLbcsFlag === 'N') {
+                if (machineInfo.lbcsFlag === 'N') {
+                    return {
+                        pass: false,
+                        msg: '无出入库记录条码',
+                        fullMsg: 'lbcsFlag is N'
+                    };
+                }
+
+                if (outside && machineInfo.outsideBarcodeLbcsFlag === 'N') {
                     return {
                         pass: false,
                         msg: '无出入库记录条码',
