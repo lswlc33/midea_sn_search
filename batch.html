@@ -155,17 +155,19 @@
                     return [false, json.supErrMsg || '退换货白名单限制'];
                 }
 
-                // --- 4. 常规错误/其他FW单号兜底 ---
+                // --- 4. 无出入库记录 ---
+                if (machineInfo.lbcsFlag || machineInfo.outsideBarcodeLbcsFlag === 'N') {
+                    return [false, '无出入库记录条码'];
+                }
+
+
+                // --- 5. 常规错误/其他FW单号兜底 ---
                 if (!json.status) {
                     const fw = json.errorMsg?.match(/FW\d{10,12}/)?.[0];
                     const msg = fw ? `FW单号: ${fw}` : (json.errorMsg || "接口返回错误");
                     return [false, msg];
                 }
 
-                // --- 5. 无出入库记录 ---
-                if (machineInfo && machineInfo.lbcsFlag === 'N') {
-                    return [false, '无出入库记录条码'];
-                }
 
                 // --- 6. 成功 ---
                 return [true, modelName];
