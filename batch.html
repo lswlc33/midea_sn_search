@@ -146,7 +146,7 @@
                 // --- 2. 安装档案重复 (AZ单号) ---
                 if (json.errorCode === 'W000003') {
                     const sourceText = json.errorMsg || machineInfo?.rowDesc || '';
-                    const az = sourceText.match(/AZ\d+/)?.[0] || sourceText.match(/JD\d+/)?.[0] || '未知单号';
+                    const az = sourceText.match(/AZ\d+/)?.[0] || sourceText.match(/JD\d+/)?.[0] ||sourceText.match(/WX\d+/)?.[0] ||sourceText.match(/TH\d+/)?.[0] || '未知单号';
                     return [false, `已录档案 ${az}`];
                 }
 
