@@ -3,8 +3,8 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>条码查询</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Midea SN Search - Miuix Style</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/15.0.7/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.6.0/highlight.min.js"></script>
@@ -14,150 +14,482 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/sweetalert2/11.23.0/sweetalert2.min.css">
 
     <style>
-        #pic {
-            opacity: 0.2;
+        :root {
+            --miuix-bg: #f2f2f2;
+            --miuix-card-bg: #ffffff;
+            --miuix-primary: #0099ff;
+            --miuix-primary-active: #007acc;
+            --miuix-text-main: #000000;
+            --miuix-text-sub: #8c8c8c;
+            --miuix-red: #ff4d4f;
+            --radius-large: 26px;
+            --radius-medium: 16px;
+            --radius-small: 12px;
+            --tab-height: 70px;
+            --max-width: 640px;
+            /* 定义最大宽度 */
+        }
+
+        body {
+            font-family: 'MiSans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Microsoft YaHei', sans-serif;
+            background-color: var(--miuix-bg);
+            color: var(--miuix-text-main);
+            margin: 0;
+            padding: 0;
+            padding-bottom: calc(var(--tab-height) + 20px);
+            -webkit-tap-highlight-color: transparent;
+
+            /* 居中整个页面内容，防止在大屏左对齐 */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* 限制主要内容区域的最大宽度 */
+        .page-container {
+            width: 100%;
+            max-width: var(--max-width);
+            position: relative;
+            z-index: 1;
+        }
+
+        /* 背景人物 */
+        #bg-pic {
+            opacity: 0.15;
             position: fixed;
             bottom: 0;
             left: 50%;
             transform: translateX(-50%);
-            width: 90%;
-            max-width: 600px;
-            height: 300px;
-            background-color: #f5f5f5;
+            width: 100%;
+            max-width: var(--max-width);
+            height: 40vh;
             background-image: url(https://klbqcp-web-cdn.idreamsky.com/prod/static/cn_img_v4/img/common/role/michele/img.png);
             background-repeat: no-repeat;
-            background-position: center top;
-            background-size: 80%;
+            background-position: center bottom;
+            background-size: contain;
             user-select: none;
-            pointer-events: none;
+            z-index: 0;
+
+            /* 新增：允许点击 */
+            pointer-events: auto;
+            /* 确保变换原点在底部中心 */
+            transform-origin: bottom center;
         }
 
-        body,
-        .container {
-            font-family: 'Microsoft YaHei', sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
+        /* --- 跳跃动画关键帧 --- */
+        @keyframes jump {
+            0% {
+                transform: translateX(-50%) translateY(0) scaleY(1);
+            }
+
+            30% {
+                transform: translateX(-50%) translateY(10px) scaleY(0.9);
+            }
+
+            /* 蓄力 */
+            50% {
+                transform: translateX(-50%) translateY(-80px) scaleY(1.05);
+            }
+
+            /* 起跳 */
+            70% {
+                transform: translateX(-50%) translateY(0) scaleY(0.95);
+            }
+
+            /* 落地缓冲 */
+            100% {
+                transform: translateX(-50%) translateY(0) scaleY(1);
+            }
         }
 
-        .container {
+        /* 激活跳跃的类 */
+        .jumping {
+            animation: jump 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        /* ----------------------- */
+
+        /* 顶部大标题 */
+        .miuix-header {
+            padding: 20px 24px;
+            padding-top: 40px;
+            background: transparent;
+        }
+
+        .miuix-title {
+            font-size: 28px;
+            font-weight: 600;
+            margin: 0;
+            color: var(--miuix-text-main);
+        }
+
+        .miuix-subtitle {
+            font-size: 14px;
+            color: var(--miuix-text-sub);
+            margin-top: 4px;
+        }
+
+        /* 卡片样式 */
+        .miuix-card {
+            background: var(--miuix-card-bg);
+            border-radius: var(--radius-large);
+            padding: 24px;
+            /* 增加内边距 */
+            margin: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+            position: relative;
+            z-index: 1;
+            transition: transform 0.2s;
+        }
+
+        /* 输入框 */
+        .miuix-input-group {
+            background: #f5f5f5;
+            border-radius: var(--radius-medium);
+            padding: 4px 16px;
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+            border: 1px solid transparent;
+            transition: border-color 0.2s, background 0.2s;
+        }
+
+        .miuix-input-group:focus-within {
             background: #fff;
-            border-radius: 30px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, .1);
+            border-color: var(--miuix-primary);
         }
 
-        .search-box {
-            display: flex;
-            margin-bottom: 10px;
-        }
-
-        #barcode {
-            flex: 1;
-            padding: 10px 15px;
-            font-size: 16px;
-            border: 3px solid #ddd;
-            border-radius: 50px;
-            outline: none;
-        }
-
-        #btn-box {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        button {
-            opacity: 0.75;
-            padding: 12px 10px;
-            color: #fff;
+        .miuix-input {
             border: none;
-            border-radius: 15px;
+            background: transparent;
+            width: 100%;
+            padding: 12px 0;
+            font-size: 16px;
+            outline: none;
+            color: var(--miuix-text-main);
+            font-family: inherit;
+        }
+
+        textarea.miuix-input {
+            resize: vertical;
+            min-height: 150px;
+            line-height: 1.5;
+        }
+
+        /* 按钮 */
+        .miuix-btn {
+            display: block;
+            width: 100%;
+            padding: 14px 0;
+            border: none;
+            border-radius: var(--radius-large);
+            font-size: 16px;
+            font-weight: 600;
             cursor: pointer;
-            box-shadow: 2px 2px 5px 0.5px rgba(0, 0, 0, 0.5);
-            transition: 0.3s;
+            transition: all 0.2s;
+            text-align: center;
+            margin-bottom: 12px;
+            user-select: none;
+            position: relative;
+            overflow: hidden;
         }
 
-        #search-btn {
-            background: #0066cccc;
+        .btn-primary {
+            background-color: var(--miuix-primary);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(0, 153, 255, 0.3);
         }
 
-        #search-btn:hover {
-            background: #0080ffcc;
+        .btn-primary:active {
+            background-color: var(--miuix-primary-active);
+            transform: scale(0.98);
         }
 
-        /* 合并后的隐蔽查询按钮样式 */
-        #search-btn-hidden {
-            background: #ff0000cc;
-            font-weight: bold;
+        .btn-danger {
+            background-color: var(--miuix-red);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(255, 77, 79, 0.3);
         }
 
-        #search-btn-hidden:hover {
-            background: #ff7b7bcc;
+        .btn-secondary {
+            background-color: #e6f7ff;
+            color: var(--miuix-primary);
         }
 
-        #search-btn4 {
-            background: green;
-            font-weight: bold;
+        .btn-disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background-color: #ccc !important;
+            box-shadow: none !important;
+            color: #666 !important;
         }
 
-        #search-btn5 {
-            background: pink;
-            font-weight: bold;
-        }
-
-        .product-info {
-            padding: 15px;
+        /* 输出区域 */
+        .output-area {
             background: #f9f9f9;
-            border-radius: 25px;
-            display: none;
-            margin-top: 20px;
+            border-radius: var(--radius-medium);
+            padding: 15px;
+            font-family: 'JetBrains Mono', Consolas, monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            margin-top: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #eee;
         }
 
         .error-message {
-            color: #d9534f;
+            color: var(--miuix-red);
+            padding: 10px;
+            background: #fff1f0;
+            border-radius: var(--radius-small);
             margin-top: 10px;
             display: none;
         }
 
+        /* 底部导航栏 (Tab Bar) */
+        .bottom-nav {
+            position: fixed;
+            bottom: 20px;
+            /* 稍微悬浮一点，更有现代感 */
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(100% - 32px);
+            /* 留出左右边距 */
+            max-width: calc(var(--max-width) - 32px);
+            height: var(--tab-height);
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            border-radius: 24px;
+            /* 增加圆角 */
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            /* 增加投影 */
+            z-index: 100;
+        }
+
+        .nav-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--miuix-text-sub);
+            font-size: 10px;
+            cursor: pointer;
+            height: 100%;
+            transition: color 0.2s;
+            position: relative;
+        }
+
+        .nav-item.active {
+            color: var(--miuix-primary);
+        }
+
+        /* 触摸反馈 */
+        .nav-item:active {
+            transform: scale(0.95);
+        }
+
+        /* SVG 图标样式 */
+        .nav-icon {
+            width: 24px;
+            height: 24px;
+            margin-bottom: 4px;
+            fill: currentColor;
+            /* 图标颜色跟随文字颜色 */
+            transition: fill 0.2s;
+        }
+
+        /* 页面切换逻辑 */
+        .tab-page {
+            display: none;
+            animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            /* 更自然的缓动 */
+        }
+
+        .tab-page.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Markdown 内容样式覆盖 */
         pre code.hljs {
-            border-radius: 20px;
+            border-radius: var(--radius-small);
+            font-family: Consolas, monospace;
+        }
+
+        details summary {
+            color: var(--miuix-primary);
+            font-weight: 500;
+            padding: 8px 0;
+            cursor: pointer;
         }
     </style>
 </head>
 
 <body>
-    <div id="pic"></div>
-    <div class="container">
-        <div class="search-box">
-            <input type="text" id="barcode" placeholder="请输入条码">
-        </div>
-        <div id="btn-box">
-            <button id="search-btn">通用内机查询</button>
-            <button id="search-btn-hidden">家中隐蔽查询</button>
-            <button id="search-btn4" onclick="window.location.href='batch.html'">家中批量查询</button>
-            <button id="search-btn5" onclick="window.location.href='batch-2.html'">家用批量查询</button>
+    <div id="bg-pic"></div>
+
+    <div class="page-container">
+        <div id="page-single" class="tab-page active">
+            <div class="miuix-header">
+                <h1 class="miuix-title">条码查询</h1>
+                <div class="miuix-subtitle">单个条码查询入口</div>
+            </div>
+
+            <div class="miuix-card">
+                <div class="miuix-input-group">
+                    <input type="text" id="single-input-sn" class="miuix-input" placeholder="请输入条码 (SN)"
+                        autocomplete="off">
+                </div>
+
+                <div style="display:flex; gap:10px;">
+                    <button id="btn-single-general" class="miuix-btn btn-primary">通用内机查询</button>
+                    <button id="btn-single-hidden" class="miuix-btn btn-secondary"
+                        style="background:#ffeced; color:#ff4d4f;">家中隐蔽查询</button>
+                </div>
+
+                <div id="single-error" class="error-message">查询失败，请检查条码或网络</div>
+
+                <div id="single-result-container" style="display:none; margin-top:20px;">
+                    <div id="single-content"></div>
+                </div>
+
+
+            </div>
+            <div style="text-align: center; margin-top: 15px;">
+                <a style="color: #aaa; text-decoration: none; font-size: 12px;"
+                    href="https://github.com/lswlc33/midea_sn_search/">关于本工具</a>
+            </div>
         </div>
 
-        <div class="error-message" id="error-message">查询失败，请检查条码或网络，也可能不支持此方式查询</div>
-        <div class="product-info" id="product-info">
-            <div id="content"></div>
+        <div id="page-batch-hidden" class="tab-page">
+            <div class="miuix-header">
+                <h1 class="miuix-title">家中批量</h1>
+                <div class="miuix-subtitle">隐蔽工程条码检测</div>
+            </div>
+
+            <div class="miuix-card">
+                <p style="color:var(--miuix-text-sub); font-size:14px; margin-top:0;">支持一列或多列，Tab/空格/换行分隔</p>
+                <div class="miuix-input-group" style="padding:0;">
+                    <textarea id="hidden-input-sn" class="miuix-input" style="padding:16px;"
+                        placeholder="在此粘贴条码..."></textarea>
+                </div>
+
+                <div style="display:flex; gap:10px;">
+                    <button id="hidden-btn-run" class="miuix-btn btn-primary">开始查询</button>
+                    <button id="hidden-btn-stop" class="miuix-btn btn-danger" style="display:none;">停止</button>
+                </div>
+
+                <div id="hidden-output" class="output-area" style="display:none;"></div>
+            </div>
         </div>
 
+        <div id="page-batch-home" class="tab-page">
+            <div class="miuix-header">
+                <h1 class="miuix-title">家用批量</h1>
+                <div class="miuix-subtitle">家用内机型号查询</div>
+            </div>
+
+            <div class="miuix-card">
+                <p style="color:var(--miuix-text-sub); font-size:14px; margin-top:0;">支持一列或多列，Tab/空格/换行分隔</p>
+                <div class="miuix-input-group" style="padding:0;">
+                    <textarea id="home-input-sn" class="miuix-input" style="padding:16px;"
+                        placeholder="在此粘贴条码..."></textarea>
+                </div>
+
+                <div style="display:flex; gap:10px;">
+                    <button id="home-btn-run" class="miuix-btn btn-primary">开始查询</button>
+                    <button id="home-btn-stop" class="miuix-btn btn-danger" style="display:none;">停止</button>
+                </div>
+
+                <div id="home-output" class="output-area" style="display:none;"></div>
+            </div>
+        </div>
     </div>
-    <div style="margin: 20px 0;right: 0;display: flex;justify-content: flex-end;">
-        <a style="color: #aaa;" href="https://github.com/lswlc33/midea_sn_search/">关于</a>
+
+    <div class="bottom-nav">
+        <div class="nav-item active" onclick="switchTab('single')">
+            <svg class="nav-icon" viewBox="0 0 24 24">
+                <path
+                    d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
+            </svg>
+            <div>单条查询</div>
+        </div>
+        <div class="nav-item" onclick="switchTab('batch-hidden')">
+            <svg class="nav-icon" viewBox="0 0 24 24">
+                <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
+            </svg>
+            <div>家中批量</div>
+        </div>
+        <div class="nav-item" onclick="switchTab('batch-home')">
+            <svg class="nav-icon" viewBox="0 0 24 24">
+                <path
+                    d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" />
+            </svg>
+            <div>家用批量</div>
+        </div>
     </div>
 
     <script>
-        /* ================= 普通查询================= */
-        document.getElementById('search-btn').addEventListener('click', request_sn);
-        function request_sn() {
-            const barcode = document.getElementById('barcode').value.trim();
-            if (!barcode) { alert('请输入条码'); return; }
+        // ================= 背景人物跳跃逻辑 =================
+        const bgPic = document.getElementById('bg-pic');
+        bgPic.addEventListener('click', function () {
+            // 移除类以重置动画（如果正在进行）
+            this.classList.remove('jumping');
+            // 强制浏览器重排 (reflow)，使移除类立即生效
+            void this.offsetWidth;
+            // 重新添加类以触发动画
+            this.classList.add('jumping');
+        });
+        // ================= Tab 切换逻辑 =================
+        function switchTab(tabName) {
+            // 隐藏所有页面
+            document.querySelectorAll('.tab-page').forEach(page => page.classList.remove('active'));
+            // 取消所有导航激活状态
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
 
-            const productInfo = document.getElementById('product-info');
-            const errorMsg = document.getElementById('error-message');
+            // 激活当前
+            document.getElementById('page-' + tabName).classList.add('active');
+
+            // 找到对应的 nav item
+            const navItems = document.querySelectorAll('.nav-item');
+            if (tabName === 'single') navItems[0].classList.add('active');
+            if (tabName === 'batch-hidden') navItems[1].classList.add('active');
+            if (tabName === 'batch-home') navItems[2].classList.add('active');
+
+            // 滚动到顶部
+            window.scrollTo(0, 0);
+        }
+
+        // ================= 模块 1: 单词查询 (原 index.html) =================
+
+        // 1.1 通用内机查询 (request_sn)
+        document.getElementById('btn-single-general').addEventListener('click', function () {
+            const barcode = document.getElementById('single-input-sn').value.trim();
+            if (!barcode) { Swal.fire('提示', '请输入条码', 'info'); return; }
+
+            const productInfo = document.getElementById('single-result-container');
+            const errorMsg = document.getElementById('single-error');
+            const contentDiv = document.getElementById('single-content');
+
             productInfo.style.display = 'none';
             errorMsg.style.display = 'none';
 
@@ -175,7 +507,7 @@
                         if (data.status && data.machineInfos?.length) {
                             const m = data.machineInfos[0];
                             const md = `
-\`\`\`
+\`\`\`text
 ${data.womMachineExtVOs?.[0]?.pubCreateDate != null ? '已录档案' : '未查到（不代表未录，可能录过隐蔽工程）'}
 \`\`\`
 ## 商品品牌
@@ -186,7 +518,7 @@ ${m.productModel}
 ${m.productionDate}
 ## 原始信息
 <details>
-<summary style="cursor:pointer;">点击展开查看原始 JSON 数据</summary>
+<summary>点击展开查看原始 JSON 数据</summary>
 
 ### 产品信息
 \`\`\`json
@@ -201,7 +533,7 @@ ${JSON.stringify(data.sourceBillNoList, null, 4)}
 ${JSON.stringify(data.womMachineExtVOs[0], null, 4)}
 \`\`\`
 </details>`;
-                            document.getElementById('content').innerHTML = marked.parse(md);
+                            contentDiv.innerHTML = marked.parse(md);
                             hljs.highlightAll();
                             productInfo.style.display = 'block';
                         } else {
@@ -217,11 +549,10 @@ ${JSON.stringify(data.womMachineExtVOs[0], null, 4)}
             };
             xhr.onerror = () => errorMsg.style.display = 'block';
             xhr.send(payload);
-        }
+        });
 
-        /* ================= 隐蔽查询 (逻辑更新版) ================= */
-
-        async function fetchSnStatus(sn, outside = 0) {
+        // 1.2 隐蔽查询辅助函数 (fetchSnStatus)
+        async function singleFetchSnStatus(sn, outside = 0) {
             const url = 'https://apiprod.midea.com/c-css/wom-bff-ipms/bff/mmp/appSearchFromSnNew';
             const payload = {
                 businessFlag: 'YBAZ',
@@ -244,68 +575,35 @@ ${JSON.stringify(data.womMachineExtVOs[0], null, 4)}
 
                 if (json.errorCode === 'WOM10099999') {
                     const fw = json.errorMsg?.match(/FW\d+/)?.[0] || '未知单号';
-                    return {
-                        pass: false,
-                        msg: `已录隐蔽 ${fw}`,
-                        fullMsg: json.errorMsg
-                    };
+                    return { pass: false, msg: `已录隐蔽 ${fw}`, fullMsg: json.errorMsg };
                 }
-
                 if (json.errorCode === 'W000003') {
-                    // 尝试从 errorMsg 或 rowDesc 中提取 AZ 单号
                     const sourceText = json.errorMsg || machineInfo?.rowDesc || '';
-                    const az = sourceText.match(/AZ\d+/)?.[0] || sourceText.match(/JD\d+/)?.[0] ||sourceText.match(/WX\d+/)?.[0] ||sourceText.match(/TH\d+/)?.[0] || '未知单号';
-                    return {
-                        pass: false,
-                        msg: `已录档案 ${az}`,
-                        fullMsg: json.errorMsg
-                    };
+                    const az = sourceText.match(/AZ\d+/)?.[0] || sourceText.match(/JD\d+/)?.[0] || sourceText.match(/WX\d+/)?.[0] || sourceText.match(/TH\d+/)?.[0] || '未知单号';
+                    return { pass: false, msg: `已录档案 ${az}`, fullMsg: json.errorMsg };
                 }
-
                 if (json.errorCode === '20') {
-                    return {
-                        pass: false,
-                        msg: '该条码做过鉴定，需申请白名单才可提交隐蔽安装。',
-                        fullMsg: json.supErrMsg
-                    };
+                    return { pass: false, msg: '该条码做过鉴定，需申请白名单才可提交隐蔽安装。', fullMsg: json.supErrMsg };
                 }
-
                 if (!json.status) {
                     const fw = json.errorMsg?.match(/FW\d+/)?.[0];
                     const shortMsg = fw ? `FW单号: ${fw}` : (json.errorMsg || '未知错误');
                     return { pass: false, msg: shortMsg, fullMsg: json.errorMsg };
                 }
-
-                if (machineInfo.lbcsFlag === 'N') {
-                    return {
-                        pass: false,
-                        msg: '无出入库记录条码',
-                        fullMsg: 'lbcsFlag is N'
-                    };
+                if (machineInfo.lbcsFlag === 'N' || (outside && machineInfo.outsideBarcodeLbcsFlag === 'N')) {
+                    return { pass: false, msg: '无出入库记录条码', fullMsg: 'lbcsFlag is N' };
                 }
 
-                if (outside && machineInfo.outsideBarcodeLbcsFlag === 'N') {
-                    return {
-                        pass: false,
-                        msg: '无出入库记录条码',
-                        fullMsg: 'lbcsFlag is N'
-                    };
-                }
-
-                return {
-                    pass: true,
-                    model: modelName
-                };
-
+                return { pass: true, model: modelName };
             } catch (e) {
                 console.error(e);
                 return { pass: false, msg: '网络或接口异常', fullMsg: e.message };
             }
         }
 
-        // 按钮点击事件 (保持原有逻辑，只需调用更新后的函数)
-        document.getElementById('search-btn-hidden').addEventListener('click', async () => {
-            const sn = document.getElementById('barcode').value.trim();
+        // 1.3 隐蔽查询按钮逻辑
+        document.getElementById('btn-single-hidden').addEventListener('click', async () => {
+            const sn = document.getElementById('single-input-sn').value.trim();
             if (!sn) return Swal.fire('提示', '请输入条码', 'warning');
 
             Swal.fire({
@@ -316,14 +614,12 @@ ${JSON.stringify(data.womMachineExtVOs[0], null, 4)}
             });
 
             // 1. 检查内机
-            const inResult = await fetchSnStatus(sn, 0);
+            const inResult = await singleFetchSnStatus(sn, 0);
 
             if (!inResult.pass) {
                 Swal.fire({
                     title: '内机异常',
-                    html: `条码：${sn}<br>
-                   结果：<span style="color:red">${inResult.msg}</span><br>
-                   <span style="font-size:12px;color:gray">${inResult.model || ''}</span>`,
+                    html: `条码：${sn}<br>结果：<span style="color:red">${inResult.msg}</span><br><span style="font-size:12px;color:gray">${inResult.model || ''}</span>`,
                     icon: 'error'
                 });
                 return;
@@ -332,13 +628,12 @@ ${JSON.stringify(data.womMachineExtVOs[0], null, 4)}
             Swal.update({ html: '内机通过，正在检查外机数据...' });
 
             // 2. 检查外机
-            const outResult = await fetchSnStatus(sn, 1);
+            const outResult = await singleFetchSnStatus(sn, 1);
 
             if (!outResult.pass) {
                 Swal.fire({
                     title: '外机异常',
-                    html: `条码：${sn}<br>
-                   结果：<span style="color:red">${outResult.msg}</span>`,
+                    html: `条码：${sn}<br>结果：<span style="color:red">${outResult.msg}</span>`,
                     icon: 'error'
                 });
                 return;
@@ -347,11 +642,197 @@ ${JSON.stringify(data.womMachineExtVOs[0], null, 4)}
             // 3. 全部通过
             Swal.fire({
                 title: '很好！',
-                html: `条码：${sn}<br>
-               状态：<span style="color:green">未查询到隐蔽记录</span><br>
-               型号：${inResult.model}`,
+                html: `条码：${sn}<br>状态：<span style="color:green">未查询到隐蔽记录</span><br>型号：${inResult.model}`,
                 icon: 'success'
             });
+        });
+
+
+        // ================= 模块 2: 家中批量查询=================
+        let hiddenBatchStopFlag = false;
+
+        async function hiddenProductSnCheck(sn, outside = 0) {
+            const url = "https://apiprod.midea.com/c-css/wom-bff-ipms/bff/mmp/appSearchFromSnNew";
+            const payload = {
+                businessFlag: "YBAZ",
+                parseType: outside ? "11" : "10",
+                ...(outside
+                    ? { productSn2: sn, oneToManyCheckFlag: "Y" }
+                    : { productSn1: sn, orgCode: "CS023" }),
+            };
+
+            try {
+                const res = await fetch(url, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                });
+                const json = await res.json();
+                const machineInfo = json.womMachineExtVOs?.[0];
+                const modelName = machineInfo?.productModel || "未知型号";
+
+                if (json.errorCode === 'WOM10099999') {
+                    const fw = json.errorMsg?.match(/FW\d+/)?.[0] || '未知单号';
+                    return [false, `已录隐蔽 ${fw}`];
+                }
+                if (json.errorCode === 'W000003') {
+                    const sourceText = json.errorMsg || machineInfo?.rowDesc || '';
+                    const az = sourceText.match(/AZ\d+/)?.[0] || sourceText.match(/JD\d+/)?.[0] || sourceText.match(/WX\d+/)?.[0] || sourceText.match(/TH\d+/)?.[0] || '未知单号';
+                    return [false, `已录档案 ${az}`];
+                }
+                if (json.errorCode === '20') {
+                    return [false, json.supErrMsg || '退换货白名单限制'];
+                }
+                if (machineInfo.lbcsFlag === 'N' || (outside && machineInfo.outsideBarcodeLbcsFlag === 'N')) {
+                    return [false, '无出入库记录条码'];
+                }
+                if (!json.status) {
+                    const fw = json.errorMsg?.match(/FW\d{10,12}/)?.[0];
+                    const msg = fw ? `FW单号: ${fw}` : (json.errorMsg || "接口返回错误");
+                    return [false, msg];
+                }
+                return [true, modelName];
+
+            } catch (e) {
+                console.error(e);
+                return [false, "网络或接口异常"];
+            }
+        }
+
+        document.getElementById("hidden-btn-run").addEventListener("click", async () => {
+            const runBtn = document.getElementById("hidden-btn-run");
+            const stopBtn = document.getElementById("hidden-btn-stop");
+            const text = document.getElementById("hidden-input-sn").value.trim();
+            const output = document.getElementById("hidden-output");
+
+            if (!text) { Swal.fire("提示", "请输入条码数据", "info"); return; }
+
+            const lines = text.split(/\n/).map(l => l.trim()).filter(Boolean);
+            let results = [];
+
+            output.style.display = "block";
+            hiddenBatchStopFlag = false;
+            runBtn.disabled = true;
+            runBtn.textContent = "查询中…";
+            runBtn.classList.add('btn-disabled');
+            stopBtn.style.display = "block";
+
+            for (const line of lines) {
+                if (hiddenBatchStopFlag) break;
+                const parts = line.split(/\s+/);
+                for (const sn of parts) {
+                    if (hiddenBatchStopFlag) break;
+                    if (!sn) continue;
+
+                    // 1. 查内机
+                    const [insn, inmsg] = await hiddenProductSnCheck(sn, 0);
+                    if (hiddenBatchStopFlag) break;
+
+                    // 2. 查外机
+                    const [outsn, outmsg] = await hiddenProductSnCheck(sn, 1);
+
+                    let result;
+                    if (!insn) {
+                        result = `${sn} False ${inmsg}`;
+                    } else if (!outsn) {
+                        result = `${sn} False ${outmsg}`;
+                    } else {
+                        result = `${sn} True ${inmsg}`;
+                    }
+                    results.push(result);
+                    output.textContent = results.join("\n");
+                    output.scrollTop = output.scrollHeight;
+                    await new Promise(r => setTimeout(r, 300));
+                }
+            }
+            runBtn.disabled = false;
+            runBtn.textContent = "开始查询";
+            runBtn.classList.remove('btn-disabled');
+            stopBtn.style.display = "none";
+        });
+
+        document.getElementById("hidden-btn-stop").addEventListener("click", () => {
+            hiddenBatchStopFlag = true;
+        });
+
+
+        // ================= 模块 3: 家用批量查询=================
+        let homeBatchStopFlag = false;
+
+        async function homeFetchInfo(sn) {
+            const url = 'https://apiprod.midea.com/c-css/c-css-ipms/api/mmp/appsearchfromsn';
+            const payload = { productSn1: sn };
+            try {
+                const res = await fetch(url, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json;charset=UTF-8" },
+                    body: JSON.stringify(payload)
+                });
+                if (res.status === 200) {
+                    const data = await res.json();
+                    let model = "未查到型号";
+                    if (data.status && data.machineInfos && data.machineInfos.length > 0) {
+                        model = data.machineInfos[0].productModel || "未知型号";
+                    }
+                    let statusStr = "对";
+                    if (data.womMachineExtVOs && data.womMachineExtVOs.length > 0) {
+                        const extInfo = data.womMachineExtVOs[0];
+                        if (extInfo.installUnitCode) statusStr = "错";
+                    }
+                    return `${model} ${statusStr}`;
+                } else {
+                    return "请求失败";
+                }
+            } catch (e) {
+                console.error(e);
+                return "网络错误";
+            }
+        }
+
+        document.getElementById("home-btn-run").addEventListener("click", async () => {
+            const runBtn = document.getElementById("home-btn-run");
+            const stopBtn = document.getElementById("home-btn-stop");
+            const text = document.getElementById("home-input-sn").value.trim();
+            const output = document.getElementById("home-output");
+
+            if (!text) { Swal.fire("提示", "请输入条码数据", "info"); return; }
+
+            const parts = text.split(/[\s,]+/).filter(Boolean);
+            if (parts.length === 0) return;
+
+            let results = [];
+
+            output.style.display = "block";
+            homeBatchStopFlag = false;
+            runBtn.disabled = true;
+            runBtn.textContent = `查询中...`;
+            runBtn.classList.add('btn-disabled');
+            stopBtn.style.display = "block";
+            output.textContent = "准备开始...";
+
+            for (let i = 0; i < parts.length; i++) {
+                if (homeBatchStopFlag) {
+                    results.push("\n--- 已停止 ---");
+                    break;
+                }
+                const sn = parts[i];
+                const info = await homeFetchInfo(sn);
+                const line = `${sn} ${info}`;
+                results.push(line);
+
+                output.textContent = results.join("\n");
+                runBtn.textContent = `查询中 (${i + 1}/${parts.length})...`;
+                await new Promise(r => setTimeout(r, 200));
+            }
+
+            runBtn.disabled = false;
+            runBtn.textContent = "开始查询";
+            runBtn.classList.remove('btn-disabled');
+            stopBtn.style.display = "none";
+        });
+
+        document.getElementById("home-btn-stop").addEventListener("click", () => {
+            homeBatchStopFlag = true;
         });
 
     </script>
