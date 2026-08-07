@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Midea SN Search - Miuix Style</title>
+    <title>Midea SN Search</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/15.0.7/marked.min.js"></script>
@@ -270,7 +270,7 @@
             display: flex;
             justify-content: space-around;
             align-items: center;
-            border-radius: 24px;
+            border-radius: 100px;
             /* 增加圆角 */
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
             /* 增加投影 */
@@ -345,6 +345,62 @@
             padding: 8px 0;
             cursor: pointer;
         }
+
+        .switch-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 12px 0;
+            font-size: 14px;
+            color: var(--miuix-text-sub);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .switch-input {
+            display: none;
+        }
+
+        .switch-slider {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            background: #ddd;
+            border-radius: 12px;
+            transition: background 0.3s;
+            flex-shrink: 0;
+        }
+
+        .switch-slider::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: #fff;
+            border-radius: 50%;
+            transition: transform 0.3s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+
+        .switch-input:checked + .switch-slider {
+            background: var(--miuix-primary);
+        }
+
+        .switch-input:checked + .switch-slider::after {
+            transform: translateX(20px);
+        }
+
+        .group-header {
+            font-weight: 600;
+            padding: 6px 0 4px;
+            margin-top: 4px;
+        }
+
+        .group-normal { color: #389e0d; }
+
+        .group-abnormal { color: #a8071a; }
     </style>
 </head>
 
@@ -397,6 +453,16 @@
                         placeholder="在此粘贴条码..."></textarea>
                 </div>
 
+                <label class="switch-label">
+                    <input type="checkbox" id="hidden-single-line-mode" class="switch-input">
+                    <span class="switch-slider"></span>
+                    <span>单行模式（每行仅取第一个条码）</span>
+                </label>
+                <label class="switch-label">
+                    <input type="checkbox" id="hidden-group-mode" class="switch-input">
+                    <span class="switch-slider"></span>
+                    <span>分组模式（按正常/异常分组显示）</span>
+                </label>
                 <div style="display:flex; gap:10px;">
                     <button id="hidden-btn-run" class="miuix-btn btn-primary">开始查询</button>
                     <button id="hidden-btn-stop" class="miuix-btn btn-danger" style="display:none;">停止</button>
@@ -419,6 +485,16 @@
                         placeholder="在此粘贴条码..."></textarea>
                 </div>
 
+                <label class="switch-label">
+                    <input type="checkbox" id="home-single-line-mode" class="switch-input">
+                    <span class="switch-slider"></span>
+                    <span>单行模式（每行仅取第一个条码）</span>
+                </label>
+                <label class="switch-label">
+                    <input type="checkbox" id="home-group-mode" class="switch-input">
+                    <span class="switch-slider"></span>
+                    <span>分组模式（按正常/异常分组显示）</span>
+                </label>
                 <div style="display:flex; gap:10px;">
                     <button id="home-btn-run" class="miuix-btn btn-primary">开始查询</button>
                     <button id="home-btn-stop" class="miuix-btn btn-danger" style="display:none;">停止</button>
@@ -453,6 +529,10 @@
     </div>
 
     <script>
+        function escapeHtml(s) {
+            return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
         // ================= 背景人物跳跃逻辑 =================
         const bgPic = document.getElementById('bg-pic');
         bgPic.addEventListener('click', function () {
@@ -655,63 +735,18 @@ ${JSON.stringify(data.womMachineExtVOs[0], null, 4)}
         // ================= 模块 2: 家中批量查询=================
         let hiddenBatchStopFlag = false;
 
-        async function hiddenProductSnCheck(sn, outside = 0) {
-            const url = "https://apiprod.midea.com/c-css/wom-bff-ipms/bff/mmp/appSearchFromSnNew";
-            const payload = {
-                businessFlag: "YBAZ",
-                parseType: outside ? "11" : "10",
-                ...(outside
-                    ? { productSn2: sn, oneToManyCheckFlag: "Y" }
-                    : { productSn1: sn, orgCode: "CS023" }),
-            };
-
-            try {
-                const res = await fetch(url, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(payload),
-                });
-                const json = await res.json();
-                const machineInfo = json.womMachineExtVOs?.[0];
-                const modelName = machineInfo?.productModel || "未知型号";
-
-                if (json.errorCode === 'WOM10099999') {
-                    const fw = json.errorMsg?.match(/FW\d+/)?.[0] || '未知单号';
-                    return [false, `已录隐蔽 ${fw}`];
-                }
-                if (json.errorCode === 'W000003') {
-                    const sourceText = json.errorMsg || machineInfo?.rowDesc || '';
-                    const az = sourceText.match(/AZ\d+/)?.[0] || sourceText.match(/JD\d+/)?.[0] || sourceText.match(/WX\d+/)?.[0] || sourceText.match(/TH\d+/)?.[0] || '未知单号';
-                    return [false, `已录档案 ${az}`];
-                }
-                if (json.errorCode === '20') {
-                    return [false, json.supErrMsg || '退换货白名单限制'];
-                }
-                if (machineInfo.lbcsFlag === 'N' || (outside && machineInfo.outsideBarcodeLbcsFlag === 'N')) {
-                    return [false, '无出入库记录条码'];
-                }
-                if (!json.status) {
-                    const fw = json.errorMsg?.match(/FW\d{10,12}/)?.[0];
-                    const msg = fw ? `FW单号: ${fw}` : (json.errorMsg || "接口返回错误");
-                    return [false, msg];
-                }
-                return [true, modelName];
-
-            } catch (e) {
-                console.error(e);
-                return [false, "网络或接口异常"];
-            }
-        }
-
         document.getElementById("hidden-btn-run").addEventListener("click", async () => {
             const runBtn = document.getElementById("hidden-btn-run");
             const stopBtn = document.getElementById("hidden-btn-stop");
             const text = document.getElementById("hidden-input-sn").value.trim();
             const output = document.getElementById("hidden-output");
+            const singleLineMode = document.getElementById("hidden-single-line-mode").checked;
+            const groupMode = document.getElementById("hidden-group-mode").checked;
 
             if (!text) { Swal.fire("提示", "请输入条码数据", "info"); return; }
 
-            const lines = text.split(/\n/).map(l => l.trim()).filter(Boolean);
+            const lines = text.split(/\n/).map(l => l.replace(/[""]/g, '').trim()).filter(Boolean);
+            const snList = singleLineMode ? lines.map(l => l.split(/\s+/)[0]).filter(Boolean) : lines.flatMap(l => l.split(/[\s,]+/)).filter(Boolean);
             let results = [];
 
             output.style.display = "block";
@@ -721,33 +756,44 @@ ${JSON.stringify(data.womMachineExtVOs[0], null, 4)}
             runBtn.classList.add('btn-disabled');
             stopBtn.style.display = "block";
 
-            for (const line of lines) {
-                if (hiddenBatchStopFlag) break;
-                const parts = line.split(/\s+/);
-                for (const sn of parts) {
-                    if (hiddenBatchStopFlag) break;
-                    if (!sn) continue;
-
-                    // 1. 查内机
-                    const [insn, inmsg] = await hiddenProductSnCheck(sn, 0);
-                    if (hiddenBatchStopFlag) break;
-
-                    // 2. 查外机
-                    const [outsn, outmsg] = await hiddenProductSnCheck(sn, 1);
-
-                    let result;
-                    if (!insn) {
-                        result = `${sn} False ${inmsg}`;
-                    } else if (!outsn) {
-                        result = `${sn} False ${outmsg}`;
-                    } else {
-                        result = `${sn} True ${inmsg}`;
+            function renderOutput() {
+                if (!groupMode) {
+                    output.innerHTML = results.map(l => /False|错|未查到型号/.test(l) ? `<span style="color:#a8071a">${escapeHtml(l)}</span>` : escapeHtml(l)).join("\n");
+                } else {
+                    const normal = [], abnormal = [], extra = [];
+                    for (const l of results) {
+                        if (l.includes('--- 已停止 ---')) extra.push(l);
+                        else if (/False|错|未查到型号/.test(l)) abnormal.push(l);
+                        else normal.push(l);
                     }
-                    results.push(result);
-                    output.textContent = results.join("\n");
-                    output.scrollTop = output.scrollHeight;
-                    await new Promise(r => setTimeout(r, 300));
+                    let html = '';
+                    if (normal.length) html += `<div class="group-header group-normal">正常 (${normal.length})</div>${normal.map(escapeHtml).join("\n")}`;
+                    if (abnormal.length) html += `<div class="group-header group-abnormal">异常 (${abnormal.length})</div>${abnormal.map(l => `<span style="color:#a8071a">${escapeHtml(l)}</span>`).join("\n")}`;
+                    if (extra.length) html += `<div style="color:var(--miuix-text-sub); margin-top:8px;">${escapeHtml(extra.join("\n"))}</div>`;
+                    output.innerHTML = html;
                 }
+            }
+
+            for (const sn of snList) {
+                if (hiddenBatchStopFlag) break;
+
+                const inResult = await singleFetchSnStatus(sn, 0);
+                if (hiddenBatchStopFlag) break;
+
+                const outResult = await singleFetchSnStatus(sn, 1);
+
+                let result;
+                if (!inResult.pass) {
+                    result = `${sn} False ${inResult.msg}`;
+                } else if (!outResult.pass) {
+                    result = `${sn} False ${outResult.msg}`;
+                } else {
+                    result = `${sn} True ${inResult.model}`;
+                }
+                results.push(result);
+                renderOutput();
+                output.scrollTop = output.scrollHeight;
+                await new Promise(r => setTimeout(r, 300));
             }
             runBtn.disabled = false;
             runBtn.textContent = "开始查询";
@@ -799,9 +845,13 @@ ${JSON.stringify(data.womMachineExtVOs[0], null, 4)}
             const text = document.getElementById("home-input-sn").value.trim();
             const output = document.getElementById("home-output");
 
+            const singleLineMode = document.getElementById("home-single-line-mode").checked;
+            const groupMode = document.getElementById("home-group-mode").checked;
+
             if (!text) { Swal.fire("提示", "请输入条码数据", "info"); return; }
 
-            const parts = text.split(/[\s,]+/).filter(Boolean);
+            const lines = text.split(/\n/).map(l => l.replace(/[""]/g, '').trim()).filter(Boolean);
+            const parts = singleLineMode ? lines.map(l => l.split(/\s+/)[0]).filter(Boolean) : lines.flatMap(l => l.split(/[\s,]+/)).filter(Boolean);
             if (parts.length === 0) return;
 
             let results = [];
@@ -814,6 +864,24 @@ ${JSON.stringify(data.womMachineExtVOs[0], null, 4)}
             stopBtn.style.display = "block";
             output.textContent = "准备开始...";
 
+            function renderOutput() {
+                if (!groupMode) {
+                    output.innerHTML = results.map(l => /False|错|未查到型号/.test(l) ? `<span style="color:#a8071a">${escapeHtml(l)}</span>` : escapeHtml(l)).join("\n");
+                } else {
+                    const normal = [], abnormal = [], extra = [];
+                    for (const l of results) {
+                        if (l.includes('--- 已停止 ---')) extra.push(l);
+                        else if (/False|错|未查到型号/.test(l)) abnormal.push(l);
+                        else normal.push(l);
+                    }
+                    let html = '';
+                    if (normal.length) html += `<div class="group-header group-normal">正常 (${normal.length})</div>${normal.map(escapeHtml).join("\n")}`;
+                    if (abnormal.length) html += `<div class="group-header group-abnormal">异常 (${abnormal.length})</div>${abnormal.map(l => `<span style="color:#a8071a">${escapeHtml(l)}</span>`).join("\n")}`;
+                    if (extra.length) html += `<div style="color:var(--miuix-text-sub); margin-top:8px;">${escapeHtml(extra.join("\n"))}</div>`;
+                    output.innerHTML = html;
+                }
+            }
+
             for (let i = 0; i < parts.length; i++) {
                 if (homeBatchStopFlag) {
                     results.push("\n--- 已停止 ---");
@@ -824,7 +892,7 @@ ${JSON.stringify(data.womMachineExtVOs[0], null, 4)}
                 const line = `${sn} ${info}`;
                 results.push(line);
 
-                output.textContent = results.join("\n");
+                renderOutput();
                 runBtn.textContent = `查询中 (${i + 1}/${parts.length})...`;
                 await new Promise(r => setTimeout(r, 200));
             }
