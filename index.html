@@ -401,6 +401,107 @@
         .group-normal { color: #389e0d; }
 
         .group-abnormal { color: #a8071a; }
+
+        .archive-list {
+            display: grid;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .archive-item {
+            width: 100%;
+            border: 1px solid #eeeeee;
+            border-radius: var(--radius-medium);
+            background: #fff;
+            padding: 14px 16px;
+            text-align: left;
+            cursor: pointer;
+            font: inherit;
+            color: inherit;
+            transition: border-color .2s, background .2s;
+        }
+
+        .archive-item:hover, .archive-item:focus-visible {
+            border-color: var(--miuix-primary);
+            background: #f7fcff;
+            outline: none;
+        }
+
+        .archive-item-title {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 8px;
+            overflow-wrap: anywhere;
+        }
+
+        .archive-item-meta {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px 12px;
+            color: var(--miuix-text-sub);
+            font-size: 13px;
+        }
+
+        .archive-item-meta strong { color: var(--miuix-text-main); font-weight: 500; }
+
+        .archive-empty {
+            color: var(--miuix-text-sub);
+            text-align: center;
+            padding: 28px 10px;
+        }
+
+        .archive-summary {
+            color: var(--miuix-text-sub);
+            font-size: 13px;
+            margin: 16px 0 0;
+        }
+
+        .archive-field-label {
+            display: block;
+            color: var(--miuix-text-sub);
+            font-size: 13px;
+            margin: 4px 0 8px;
+        }
+
+        .archive-filter-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0 12px;
+        }
+
+        .archive-filter-grid .miuix-input-group { margin-bottom: 12px; }
+
+        @media (max-width: 420px) {
+            .archive-item-meta { grid-template-columns: 1fr; }
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --miuix-bg: #121212;
+                --miuix-card-bg: #242424;
+                --miuix-primary: #287fae;
+                --miuix-primary-active: #1f6b94;
+                --miuix-text-main: #f2f2f2;
+                --miuix-text-sub: #aaaaaa;
+            }
+
+            .miuix-input-group { background: #343434; }
+            .miuix-input-group:focus-within { background: #2c2c2c; }
+            .miuix-input { color-scheme: dark; }
+            .miuix-card { box-shadow: 0 4px 20px rgba(0, 0, 0, .22); }
+            .bottom-nav {
+                background: rgba(38, 38, 38, .95);
+                box-shadow: 0 8px 32px rgba(0, 0, 0, .35);
+            }
+            .btn-secondary { background: #17384b; }
+            .output-area { background: #1d1d1d; border-color: #3b3b3b; }
+            .error-message { background: #411d20; }
+            .archive-item { background: #2c2c2c; border-color: #414141; }
+            .archive-item:hover, .archive-item:focus-visible { background: #263944; }
+            .swal2-popup { background: #292929; color: #f2f2f2; }
+            .swal2-title, .swal2-html-container { color: #f2f2f2; }
+            .archive-detail-json { background: #1b1b1b !important; color: #eeeeee; }
+        }
     </style>
 </head>
 
@@ -503,6 +604,47 @@
                 <div id="home-output" class="output-area" style="display:none;"></div>
             </div>
         </div>
+
+        <div id="page-install" class="tab-page">
+            <div class="miuix-header">
+                <h1 class="miuix-title">指定安装查询</h1>
+                <div class="miuix-subtitle">按工程师和日期查询安装档案</div>
+            </div>
+
+            <div class="miuix-card">
+                <div class="archive-filter-grid">
+                    <div>
+                        <label class="archive-field-label" for="install-engineer-code">工程师编码</label>
+                        <div class="miuix-input-group">
+                            <input type="text" id="install-engineer-code" class="miuix-input"
+                                placeholder="请输入编码" autocomplete="off">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="archive-field-label" for="install-rows">条数</label>
+                        <div class="miuix-input-group">
+                            <input type="number" id="install-rows" class="miuix-input" value="10" min="1" max="100">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="archive-field-label" for="install-start-date">开始日期</label>
+                        <div class="miuix-input-group">
+                            <input type="date" id="install-start-date" class="miuix-input">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="archive-field-label" for="install-end-date">结束日期</label>
+                        <div class="miuix-input-group">
+                            <input type="date" id="install-end-date" class="miuix-input">
+                        </div>
+                    </div>
+                </div>
+                <button id="install-btn-run" class="miuix-btn btn-primary">查询安装档案</button>
+                <div id="install-error" class="error-message"></div>
+                <div id="install-summary" class="archive-summary" style="display:none;"></div>
+                <div id="install-output" class="archive-list" style="display:none;"></div>
+            </div>
+        </div>
     </div>
 
     <div class="bottom-nav">
@@ -526,11 +668,17 @@
             </svg>
             <div>家用批量</div>
         </div>
+        <div class="nav-item" onclick="switchTab('install')">
+            <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-1 16H6V5h12v14zM8 7h8v2H8V7zm0 4h8v2H8v-2zm0 4h5v2H8v-2z" />
+            </svg>
+            <div>指定安装</div>
+        </div>
     </div>
 
     <script>
         function escapeHtml(s) {
-            return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
 
         // ================= 背景人物跳跃逻辑 =================
@@ -558,6 +706,7 @@
             if (tabName === 'single') navItems[0].classList.add('active');
             if (tabName === 'batch-hidden') navItems[1].classList.add('active');
             if (tabName === 'batch-home') navItems[2].classList.add('active');
+            if (tabName === 'install') navItems[3].classList.add('active');
 
             // 滚动到顶部
             window.scrollTo(0, 0);
@@ -905,6 +1054,134 @@ ${JSON.stringify(data.womMachineExtVOs[0], null, 4)}
 
         document.getElementById("home-btn-stop").addEventListener("click", () => {
             homeBatchStopFlag = true;
+        });
+
+        // ================= 模块 4: 指定安装档案查询 =================
+        const installApiUrl = 'https://apiprod.midea.com/c-css/wom-archives-ipms-bff/bff/common/pageQueryArchivesEsListForEngineer';
+        const installDateFormatter = new Intl.DateTimeFormat('zh-CN', {
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+        });
+
+        function localDateString(date = new Date()) {
+            const offset = date.getTimezoneOffset() * 60000;
+            return new Date(date.getTime() - offset).toISOString().slice(0, 10);
+        }
+
+        function formatArchiveDate(value) {
+            if (value === null || value === undefined || value === '') return '暂无';
+            const numericValue = typeof value === 'number' ? value : Number(value);
+            const date = Number.isFinite(numericValue) && String(value).trim() !== ''
+                ? new Date(numericValue < 100000000000 ? numericValue * 1000 : numericValue)
+                : new Date(String(value).replace(' ', 'T'));
+            return Number.isNaN(date.getTime()) ? String(value) : installDateFormatter.format(date);
+        }
+
+        function archiveValue(row, keys) {
+            for (const key of keys) {
+                if (row && row[key] !== null && row[key] !== undefined && row[key] !== '') return row[key];
+            }
+            return '';
+        }
+
+        const today = new Date();
+        const oneMonthAgo = new Date(today);
+        const originalDay = oneMonthAgo.getDate();
+        oneMonthAgo.setDate(1);
+        oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+        const targetMonthDays = new Date(oneMonthAgo.getFullYear(), oneMonthAgo.getMonth() + 1, 0).getDate();
+        oneMonthAgo.setDate(Math.min(originalDay, targetMonthDays));
+        document.getElementById('install-start-date').value = localDateString(oneMonthAgo);
+        document.getElementById('install-end-date').value = localDateString(today);
+
+        document.getElementById('install-btn-run').addEventListener('click', async () => {
+            const engineerCode = document.getElementById('install-engineer-code').value.trim();
+            const startDate = document.getElementById('install-start-date').value;
+            const endDate = document.getElementById('install-end-date').value;
+            const rows = Number(document.getElementById('install-rows').value);
+            const output = document.getElementById('install-output');
+            const summary = document.getElementById('install-summary');
+            const error = document.getElementById('install-error');
+            const button = document.getElementById('install-btn-run');
+
+            if (!engineerCode || !startDate || !endDate) {
+                Swal.fire('提示', '请完整填写工程师编码和日期', 'warning');
+                return;
+            }
+            if (startDate > endDate) {
+                Swal.fire('提示', '开始日期不能晚于结束日期', 'warning');
+                return;
+            }
+
+            button.disabled = true;
+            button.textContent = '查询中…';
+            button.classList.add('btn-disabled');
+            error.style.display = 'none';
+            output.style.display = 'none';
+            summary.style.display = 'none';
+
+            const payload = {
+                param: {
+                    engineerCode,
+                    startDate: `${startDate} 00:00:00`,
+                    endDate: `${endDate} 23:59:59`,
+                    archivesStatus: [10, 11, 12],
+                    archivesType: 'AZ',
+                    specialFlag: false
+                },
+                page: 1,
+                rows: Math.min(Math.max(rows || 10, 1), 100)
+            };
+
+            try {
+                const response = await fetch(installApiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json;charset=UTF-8' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await response.json();
+                if (!response.ok || !data.status) throw new Error(data.errorMsg || `请求失败（${response.status}）`);
+
+                const records = Array.isArray(data.rows) ? data.rows : [];
+                summary.textContent = `共找到 ${data.total ?? records.length} 条记录，点击记录可查看详情`;
+                summary.style.display = 'block';
+                output.style.display = 'grid';
+                if (!records.length) {
+                    output.innerHTML = '<div class="archive-empty">当前条件下暂无安装档案</div>';
+                    return;
+                }
+
+                output.innerHTML = records.map((row, index) => {
+                    const model = archiveValue(row, ['productModel', 'modelName']) || '未知型号';
+                    const archivesNo = archiveValue(row, ['archivesNo', 'archiveNo']) || '暂无档案编号';
+                    const createDate = archiveValue(row, ['pubCreateDate', 'pubCreateDateStr', 'createDate']);
+                    return `<button type="button" class="archive-item" data-archive-index="${index}">
+                        <div class="archive-item-title">${escapeHtml(model)}</div>
+                        <div class="archive-item-meta">
+                            <span>档案编号 <strong>${escapeHtml(archivesNo)}</strong></span>
+                            <span>创建时间 <strong>${escapeHtml(formatArchiveDate(createDate))}</strong></span>
+                        </div>
+                    </button>`;
+                }).join('');
+
+                output.querySelectorAll('.archive-item').forEach(item => item.addEventListener('click', () => {
+                    const row = records[Number(item.dataset.archiveIndex)];
+                    Swal.fire({
+                        title: '安装档案详情',
+                        html: `<pre class="archive-detail-json" style="text-align:left;white-space:pre-wrap;word-break:break-all;max-height:55vh;overflow:auto;font-size:12px;background:#f7f7f7;padding:12px;border-radius:10px;">${escapeHtml(JSON.stringify(row, null, 2))}</pre>`,
+                        width: 640,
+                        confirmButtonText: '关闭'
+                    });
+                }));
+            } catch (e) {
+                console.error(e);
+                error.textContent = e.message || '查询失败，请检查网络或接口权限';
+                error.style.display = 'block';
+            } finally {
+                button.disabled = false;
+                button.textContent = '查询安装档案';
+                button.classList.remove('btn-disabled');
+            }
         });
 
     </script>
