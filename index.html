@@ -471,6 +471,95 @@
 
         .archive-filter-grid .miuix-input-group { margin-bottom: 12px; }
 
+        /* ===== 22 位条码规则解析 ===== */
+        .decode-card {
+            margin-top: 16px;
+            border: 1px solid #ececec;
+            border-radius: var(--radius-medium);
+            overflow: hidden;
+        }
+
+        .decode-code {
+            padding: 12px 14px;
+            background: #fafafa;
+            border-bottom: 1px solid #ececec;
+            font-family: 'MiSans', Consolas, monospace;
+            font-size: 15px;
+            line-height: 2;
+            word-break: break-all;
+        }
+
+        .decode-seg {
+            padding: 2px 4px;
+            border-radius: 5px;
+            font-weight: 600;
+        }
+
+        .decode-note {
+            display: block;
+            margin-top: 8px;
+            font-size: 12px;
+            line-height: 1.6;
+            color: var(--miuix-text-sub);
+            font-family: inherit;
+        }
+
+        .decode-row {
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+            padding: 10px 14px;
+            border-bottom: 1px solid #f4f4f4;
+            font-size: 14px;
+        }
+
+        .decode-row:last-child { border-bottom: none; }
+
+        .decode-key {
+            width: 74px;
+            flex-shrink: 0;
+            color: var(--miuix-text-sub);
+            font-size: 13px;
+        }
+
+        .decode-val {
+            flex: 1;
+            overflow-wrap: anywhere;
+        }
+
+        .decode-main .decode-val {
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .decode-sub-head {
+            padding: 8px 14px;
+            background: #fafafa;
+            border-top: 1px solid #f0f0f0;
+            border-bottom: 1px solid #f4f4f4;
+            font-size: 12px;
+            color: var(--miuix-text-sub);
+        }
+
+        .decode-tip {
+            display: block;
+            margin-top: 2px;
+            font-size: 12px;
+            font-weight: 400;
+            color: var(--miuix-text-sub);
+        }
+
+        .decode-unknown { color: #d46b08; }
+
+        .decode-warn {
+            padding: 10px 14px;
+            background: #fff7e6;
+            border-top: 1px solid #ffe7ba;
+            color: #ad4e00;
+            font-size: 13px;
+            line-height: 1.8;
+        }
+
         @media (max-width: 420px) {
             .archive-item-meta { grid-template-columns: 1fr; }
         }
@@ -501,6 +590,13 @@
             .swal2-popup { background: #292929; color: #f2f2f2; }
             .swal2-title, .swal2-html-container { color: #f2f2f2; }
             .archive-detail-json { background: #1b1b1b !important; color: #eeeeee; }
+
+            .decode-card { border-color: #3d3d3d; }
+            .decode-code { background: #1d1d1d; border-bottom-color: #3d3d3d; }
+            .decode-row { border-bottom-color: #333333; }
+            .decode-sub-head { background: #1d1d1d; border-top-color: #3d3d3d; border-bottom-color: #333333; }
+            .decode-warn { background: #3a2c12; border-top-color: #614700; color: #ffc069; }
+            .decode-unknown { color: #ffa940; }
         }
     </style>
 </head>
@@ -526,6 +622,9 @@
                     <button id="btn-single-hidden" class="miuix-btn btn-secondary"
                         style="background:#ffeced; color:#ff4d4f;">家中隐蔽查询</button>
                 </div>
+
+                <button id="btn-single-decode" class="miuix-btn btn-secondary">离线规则解析</button>
+                <div id="single-decode-result" style="display:none;"></div>
 
                 <div id="single-error" class="error-message">查询失败，请检查条码或网络</div>
 
@@ -725,6 +824,7 @@
 
             productInfo.style.display = 'none';
             errorMsg.style.display = 'none';
+            hideSingleDecode();   // 与离线规则解析结果互斥
 
             const url = 'https://apiprod.midea.com/c-css/c-css-ipms/api/mmp/appsearchfromsn';
             const payload = JSON.stringify({ productSn1: barcode });
@@ -878,6 +978,237 @@ ${JSON.stringify(data.womMachineExtVOs[0], null, 4)}
                 html: `条码：${sn}<br>状态：<span style="color:green">未查询到隐蔽记录</span><br>型号：${inResult.model}`,
                 icon: 'success'
             });
+        });
+
+
+        // ================= 模块 1.4: 22 位条码规则本地解析 =================
+        // 规则来源：《终端产品条形码规则》
+        // 22 位结构：版本1 + 种类1 + 品牌1 + 产品代码8(品类3+型号5) + 生产日期4 + 生产地点2 + 车间线体1 + 产品序号4
+
+        const BARCODE_VERSION_MAP = {
+            '1': '第一版（2014 年 09 月规则）',
+            '2': '第二版（2015 年 07 月规则）'
+        };
+
+        const BARCODE_KIND_MAP = {
+            '1': '内销基准产品',
+            '2': '外销基准产品',
+            '3': '内销订单产品',
+            '4': '外销订单产品'
+        };
+
+        const BARCODE_BRAND_MAP = {
+            '0': 'OEM(ODM) / 无品牌',
+            '1': '美的',
+            '2': '华凌',
+            '3': '小天鹅',
+            '7': '东芝',
+            '8': 'COLMO',
+            '9': '易酷'
+        };
+
+        // 年份压缩为 1 位字符，字母跳过易混淆的 E / I / O
+        const BARCODE_YEAR_MAP = {
+            '5': 2015, '6': 2016, '7': 2017, '8': 2018, '9': 2019, '0': 2020,
+            '1': 2021, '2': 2022, '3': 2023, '4': 2024,
+            'A': 2025, 'B': 2026, 'C': 2027, 'D': 2028, 'F': 2029, 'G': 2030,
+            'H': 2031, 'J': 2032, 'K': 2033, 'L': 2034, 'M': 2035, 'N': 2036,
+            'P': 2037, 'Q': 2038, 'R': 2039, 'S': 2040, 'T': 2041, 'U': 2042,
+            'V': 2043, 'W': 2044, 'X': 2045, 'Y': 2046, 'Z': 2047
+        };
+
+        const BARCODE_MONTH_MAP = {
+            '1': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6,
+            '7': 7, '8': 8, '9': 9, 'A': 10, 'B': 11, 'C': 12
+        };
+
+        const BARCODE_FACTORY_MAP = {
+            '00': '越南工厂（胡志明市综合厂区）',
+            '01': '顺德工厂（林港路家用空调厂区）',
+            '02': '芜湖工厂（经开区家用空调厂区）',
+            '03': '武汉工厂（经开区家用空调厂区）',
+            '04': '顺德工厂（陈大滘中央空调厂区）',
+            '05': '重庆工厂（南涪路家用空调厂区）',
+            '06': '重庆工厂（玉马池中央空调厂区）',
+            '07': '邯郸工厂（高开区家用空调厂区）',
+            '08': '广州工厂（南沙区家用空调厂区）',
+            '09': '合肥工厂（高新区中央空调厂区）',
+            '10': '合肥工厂（经开区冰箱厂区）',
+            '11': '广州工厂（南沙区冰箱厂区）',
+            '12': '荆州工厂（经开区冰箱厂区）',
+            '13': '合肥工厂（高新区洗衣机厂区）',
+            '14': '无锡工厂（长江路洗衣机厂区）',
+            '15': '芜湖工厂（万春路热水器厂区）',
+            '16': '顺德工厂（广乐路饮水机厂区）',
+            '17': '顺德工厂（港前路洗涤电器厂区）',
+            '18': '芜湖工厂（经开区洗涤电器厂区）',
+            '19': '顺德工厂（马龙村厨房电器厂区）',
+            '20': '顺德工厂（陈大滘厨房电器厂区）',
+            '21': '芜湖工厂（经开区厨房电器厂区）',
+            '22': '苏州工厂（相城区吸尘器厂区）',
+            '23': '顺德工厂（三乐路热电产品厂区）',
+            '24': '顺德工厂（林港路水料产品厂区）',
+            '25': '中山工厂（东阜路环电一期厂区）',
+            '26': '中山工厂（东阜路环电二期厂区）',
+            '27': '贵雅工厂（贵溪贵雅光源厂区）',
+            '99': 'OEM(ODM) 代工工厂'
+        };
+
+        // 产品品类 = 产品代码前 3 位。规则文件未附品类对应表，拿到后按 '代码': '名称' 补充即可。
+        const BARCODE_CATEGORY_MAP = {};
+
+        function decodeMideaBarcode(input) {
+            const cleaned = String(input || '').replace(/[^0-9A-Za-z]/g, '').toUpperCase();
+            if (!cleaned) return { ok: false, error: '请先输入条码' };
+
+            let core = cleaned;
+            let extractNote = '';
+            if (cleaned.length === 32) {
+                core = cleaned.slice(6, 28);
+                extractNote = '已从 32 位二维码提取 22 位主体';
+            } else if (cleaned.length === 28) {
+                core = cleaned.slice(2, 24);
+                extractNote = '已从 28 位 SN 码提取 22 位主体';
+            }
+
+            if (core.length !== 22) {
+                return { ok: false, error: `条码 ${cleaned.length} 位，需 22 位（或 28 / 32 位二维码）` };
+            }
+
+            const warnings = [];
+            const versionCode = core.slice(0, 1);
+            const kindCode = core.slice(1, 2);
+            const brandCode = core.slice(2, 3);
+            const productCode = core.slice(3, 11);
+            const categoryCode = productCode.slice(0, 3);
+            const modelCode = productCode.slice(3, 8);
+            const yearChar = core.slice(11, 12);
+            const monthChar = core.slice(12, 13);
+            const dayText = core.slice(13, 15);
+            const factoryCode = core.slice(15, 17);
+            const lineCode = core.slice(17, 18);
+            const serialCode = core.slice(18, 22);
+
+            const kindName = BARCODE_KIND_MAP[kindCode];
+            if (!kindName) warnings.push(`第 2 位 种类代码 ${kindCode} 未收录`);
+
+            const brandName = BARCODE_BRAND_MAP[brandCode];
+            if (!brandName) warnings.push(`第 3 位 品牌代码 ${brandCode} 未收录`);
+
+            const factoryName = BARCODE_FACTORY_MAP[factoryCode];
+            if (!factoryName) warnings.push(`第 16-17 位 工厂代码 ${factoryCode} 未收录`);
+
+            const categoryName = BARCODE_CATEGORY_MAP[categoryCode];
+
+            const year = BARCODE_YEAR_MAP[yearChar];
+            const month = BARCODE_MONTH_MAP[monthChar];
+            const day = /^\d{2}$/.test(dayText) ? Number(dayText) : NaN;
+            const dateOk = !!year && !!month && Number.isFinite(day) && day >= 1 && day <= new Date(year || 2000, month || 1, 0).getDate();
+            let dateText = '';
+            let dateTip = '';
+            if (!dateOk) {
+                dateText = yearChar + monthChar + dayText;
+                warnings.push(`第 12-15 位 生产日期 ${yearChar + monthChar + dayText} 不符合规则`);
+            } else {
+                dateText = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const today = new Date();
+                const diffDays = Math.floor(
+                    (new Date(today.getFullYear(), today.getMonth(), today.getDate()) - new Date(year, month - 1, day)) / 86400000
+                );
+                if (diffDays < 0) warnings.push('生产日期晚于当前日期');
+                else dateTip = diffDays === 0 ? '今日生产' : `距今 ${diffDays} 天`;
+            }
+
+            const fields = [
+                { key: '品牌', main: true, value: brandName || brandCode, unknown: !brandName },
+                { key: '条码种类', main: true, value: kindName || kindCode, unknown: !kindName },
+                { key: '产品品类', main: true, value: categoryName || categoryCode },
+                { key: '型号代码', main: true, value: modelCode },
+                { key: '生产日期', main: true, value: dateText, unknown: !dateOk, tip: dateTip },
+                { key: '生产工厂', main: true, value: factoryName || factoryCode, unknown: !factoryName },
+                { key: '规则版本', value: BARCODE_VERSION_MAP[versionCode] || `第 ${versionCode} 版` },
+                { key: '产品代码', value: productCode },
+                { key: '车间线体', value: lineCode },
+                { key: '产品序号', value: serialCode }
+            ];
+
+            return { ok: true, core, extractNote, fields, warnings };
+        }
+
+        // 分段着色展示：版本 / 种类 / 品牌 / 品类 / 型号 / 日期 / 工厂 / 线体 / 序号
+        const BARCODE_SEGMENT_STYLES = [
+            { len: 1, color: '#8c8c8c', bg: 'rgba(140,140,140,.16)' },
+            { len: 1, color: '#722ed1', bg: 'rgba(114,46,209,.16)' },
+            { len: 1, color: '#0958d9', bg: 'rgba(9,88,217,.16)' },
+            { len: 3, color: '#389e0d', bg: 'rgba(56,158,13,.18)' },
+            { len: 5, color: '#08979c', bg: 'rgba(8,151,156,.18)' },
+            { len: 4, color: '#d46b08', bg: 'rgba(212,107,8,.18)' },
+            { len: 2, color: '#c41d7f', bg: 'rgba(196,29,127,.16)' },
+            { len: 1, color: '#8c8c8c', bg: 'rgba(140,140,140,.16)' },
+            { len: 4, color: '#595959', bg: 'rgba(89,89,89,.12)' }
+        ];
+
+        function renderBarcodeSegments(core) {
+            let cursor = 0;
+            return BARCODE_SEGMENT_STYLES.map(seg => {
+                const part = core.slice(cursor, cursor + seg.len);
+                cursor += seg.len;
+                return `<span class="decode-seg" style="color:${seg.color};background:${seg.bg}">${escapeHtml(part)}</span>`;
+            }).join('<span style="opacity:.3">·</span>');
+        }
+
+        function hideSingleDecode() {
+            const box = document.getElementById('single-decode-result');
+            box.style.display = 'none';
+            box.innerHTML = '';
+        }
+
+        function renderSingleDecode() {
+            const box = document.getElementById('single-decode-result');
+            const result = decodeMideaBarcode(document.getElementById('single-input-sn').value);
+
+            // 与通用内机查询结果互斥
+            document.getElementById('single-result-container').style.display = 'none';
+            document.getElementById('single-error').style.display = 'none';
+            box.style.display = 'block';
+
+            if (!result.ok) {
+                box.innerHTML = `<div class="decode-card"><div class="decode-warn" style="border-top:none;">${escapeHtml(result.error)}</div></div>`;
+                return;
+            }
+
+            const rowsHtml = result.fields.map((f, index) => {
+                const prefix = index === 6 ? '<div class="decode-sub-head">其他字段</div>' : '';
+                const tipHtml = f.tip ? `<span class="decode-tip">${escapeHtml(f.tip)}</span>` : '';
+                return `${prefix}<div class="decode-row${f.main ? ' decode-main' : ''}">
+                            <div class="decode-key">${escapeHtml(f.key)}</div>
+                            <div class="decode-val"><span${f.unknown ? ' class="decode-unknown"' : ''}>${escapeHtml(f.value)}</span>${tipHtml}</div>
+                        </div>`;
+            }).join('');
+
+            const warnHtml = result.warnings.length
+                ? `<div class="decode-warn">${result.warnings.map(w => `· ${escapeHtml(w)}`).join('<br>')}</div>`
+                : '';
+
+            box.innerHTML = `<div class="decode-card">
+                <div class="decode-code">${renderBarcodeSegments(result.core)}
+                    <span class="decode-note">版本 · 种类 · 品牌 · 品类 · 型号 · 生产日期 · 工厂 · 线体 · 序号${result.extractNote ? '<br>' + escapeHtml(result.extractNote) : ''}</span>
+                </div>
+                ${rowsHtml}
+                ${warnHtml}
+            </div>`;
+        }
+
+        // 点一下展开，再点一下收起
+        document.getElementById('btn-single-decode').addEventListener('click', () => {
+            const box = document.getElementById('single-decode-result');
+            if (box.style.display !== 'none') hideSingleDecode();
+            else renderSingleDecode();
+        });
+
+        // 结果已展开时，输入框内容变化即时重算
+        document.getElementById('single-input-sn').addEventListener('input', () => {
+            if (document.getElementById('single-decode-result').style.display !== 'none') renderSingleDecode();
         });
 
 
